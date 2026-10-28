@@ -171,12 +171,23 @@ class DefaultLayoutProvider(
         // Check if there's space to put all the buttons below the screens. If not, place L, R, and utility buttons aligned with the top of the bottom screen
         val utilityButtonsTop = if (screensBottom + lrButtonsSize + largeButtonsSize > height) {
             safeTop + screenHeight
+        } else if (isSingleScreenFit) {
+            // Leave a small gap for the screen frame
+            screensBottom + spacing4dp * 2
         } else {
             screensBottom
         }
 
-        val dpadView = Rect(safeLeft, height - safeBottom - largeButtonsSize, largeButtonsSize, largeButtonsSize)
-        val buttonsView = Rect(width - safeRight - largeButtonsSize, height - safeBottom - largeButtonsSize, largeButtonsSize, largeButtonsSize)
+        // With the one screen + mini screen layout, the controls sit right below the screen, like on a Game Boy, if there's enough room. Otherwise they're
+        // anchored to the bottom of the screen
+        val gameBoyControlsTop = utilityButtonsTop + lrButtonsSize + spacing4dp * 2
+        val startSelectTop = gameBoyControlsTop + largeButtonsSize + spacing4dp * 3
+        val useGameBoyPlacement = isSingleScreenFit && startSelectTop + smallButtonsSize <= height - safeBottom
+        val controlsTop = if (useGameBoyPlacement) gameBoyControlsTop else height - safeBottom - largeButtonsSize
+        val startSelectY = if (useGameBoyPlacement) startSelectTop else height - safeBottom - smallButtonsSize
+
+        val dpadView = Rect(safeLeft, controlsTop, largeButtonsSize, largeButtonsSize)
+        val buttonsView = Rect(width - safeRight - largeButtonsSize, controlsTop, largeButtonsSize, largeButtonsSize)
 
         return ScreenLayout(
             listOf(
@@ -185,8 +196,8 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft, utilityButtonsTop, lrButtonsSize, lrButtonsSize), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrButtonsSize, utilityButtonsTop, lrButtonsSize, lrButtonsSize), LayoutComponent.BUTTON_R),
-                PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize - spacing4dp / 2, height - safeBottom - smallButtonsSize, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SELECT),
-                PositionedLayoutComponent(Rect(width / 2 + spacing4dp / 2, height - safeBottom - smallButtonsSize, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_START),
+                PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize - spacing4dp / 2, startSelectY, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SELECT),
+                PositionedLayoutComponent(Rect(width / 2 + spacing4dp / 2, startSelectY, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_START),
                 PositionedLayoutComponent(Rect(width / 2 - (smallButtonsSize * 2.0 + spacing4dp * 1.5).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_HINGE),
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize - (spacing4dp / 2.0).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT),
                 PositionedLayoutComponent(Rect(width / 2 + (spacing4dp / 2.0).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_MICROPHONE_TOGGLE),

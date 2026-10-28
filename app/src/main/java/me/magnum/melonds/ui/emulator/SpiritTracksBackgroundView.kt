@@ -24,7 +24,8 @@ import kotlin.math.sin
  * Animated countryside scene drawn behind the on-screen controls, inspired by The Legend of Zelda: Spirit Tracks: a sky with drifting clouds, rolling hills
  * with parallax and a railway on which a small steam train regularly passes by, puffing smoke. Everything is drawn with simple shapes.
  *
- * The areas covered by the DS screens are never drawn, so the scene only shows around them.
+ * The areas covered by the DS screens are never drawn, so the scene only shows around them. The screens get a dark wood and gold frame, which is drawn even
+ * when the scene itself is disabled.
  */
 class SpiritTracksBackgroundView @JvmOverloads constructor(
     context: Context,
@@ -43,8 +44,30 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
 
     private val density = resources.displayMetrics.density
 
-    private val screenRects = mutableListOf<RectF>()
+    private class ScreenArea(val rect: RectF, val isMiniScreen: Boolean)
+
+    private val screenAreas = mutableListOf<ScreenArea>()
     private var isAnimating = false
+
+    /**
+     * Whether to draw the countryside scene. When disabled, only the screen frames are drawn.
+     */
+    var isSceneEnabled = true
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    /**
+     * Opacity of the small screen window, so that its frame fades together with it.
+     */
+    var miniScreenAlpha = 1f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    private val framePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val startTime = SystemClock.uptimeMillis()
 
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -79,12 +102,13 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     }
 
     /**
-     * Sets the areas covered by the DS screens. These areas are left undrawn.
+     * Sets the areas covered by the DS screens, each with whether it's the small screen window. These areas are left undrawn, apart from their frames.
      */
-    fun setScreenRects(rects: List<Rect?>) {
-        screenRects.clear()
-        rects.filterNotNull().forEach {
-            screenRects.add(RectF(it.x.toFloat(), it.y.toFloat(), (it.x + it.width).toFloat(), (it.y + it.height).toFloat()))
+    fun setScreenRects(rects: List<Pair<Rect, Boolean>>) {
+        screenAreas.clear()
+        rects.forEach { (rect, isMiniScreen) ->
+            val rectF = RectF(rect.x.toFloat(), rect.y.toFloat(), (rect.x + rect.width).toFloat(), (rect.y + rect.height).toFloat())
+            screenAreas.add(ScreenArea(rectF, isMiniScreen))
         }
         invalidate()
     }
@@ -132,10 +156,17 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             return
         }
 
+        if (isSceneEnabled) {
+            drawScene(canvas, w, h)
+        }
+        drawScreenFrames(canvas)
+    }
+
+    private fun drawScene(canvas: Canvas, w: Float, h: Float) {
         val time = (SystemClock.uptimeMillis() - startTime) / 1000f
 
         canvas.save()
-        screenRects.forEach { clipOutRect(canvas, it) }
+        screenAreas.forEach { clipOutRect(canvas, it.rect) }
 
         // Sky and sun
         canvas.drawRect(0f, 0f, w, h, skyPaint)
@@ -156,6 +187,31 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         drawTrain(canvas, w, trackY, time)
 
         canvas.restore()
+    }
+
+    /**
+     * Draws a dark wood frame with a gold line along the inner edges of each screen.
+     */
+    private fun drawScreenFrames(canvas: Canvas) {
+        val d = density
+        screenAreas.forEach { area ->
+            val alpha = ((if (area.isMiniScreen) miniScreenAlpha else 1f) * 255).toInt()
+            val corner = if (area.isMiniScreen) 3 * d else 0f
+
+            framePaint.color = 0xFF3B2412.toInt()
+            framePaint.alpha = alpha
+            framePaint.strokeWidth = 3 * d
+            rect.set(area.rect)
+            rect.inset(1.5f * d, 1.5f * d)
+            canvas.drawRoundRect(rect, corner, corner, framePaint)
+
+            framePaint.color = 0xFFE2B54A.toInt()
+            framePaint.alpha = alpha
+            framePaint.strokeWidth = 1.2f * d
+            rect.set(area.rect)
+            rect.inset(3.6f * d, 3.6f * d)
+            canvas.drawRoundRect(rect, corner, corner, framePaint)
+        }
     }
 
     @Suppress("DEPRECATION")

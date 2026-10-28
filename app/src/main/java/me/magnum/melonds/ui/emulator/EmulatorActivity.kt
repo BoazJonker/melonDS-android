@@ -1,5 +1,6 @@
 package me.magnum.melonds.ui.emulator
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -119,6 +120,11 @@ class EmulatorActivity : AppCompatActivity() {
     companion object {
         private const val SETTINGS_BACK_PRESS_COUNT = 3
         private const val SETTINGS_BACK_PRESS_WINDOW_MS = 1500L
+
+        // The small screen window (the map) is see-through while playing, and fully visible when held or after standing still for a while
+        private const val MINI_SCREEN_PLAYING_ALPHA = 0.55f
+        private const val MINI_SCREEN_IDLE_DELAY_MS = 5000L
+        private const val MINI_SCREEN_FADE_DURATION_MS = 250L
 
         const val KEY_ROM = "rom"
         const val KEY_PATH = "PATH"
@@ -255,6 +261,21 @@ class EmulatorActivity : AppCompatActivity() {
     private var backPressCount = 0
     private var firstBackPressTime = 0L
 
+    private var miniScreenAlpha = MINI_SCREEN_PLAYING_ALPHA
+    private var miniScreenAlphaAnimator: ValueAnimator? = null
+    private var isMiniScreenHeld = false
+    private var isPlayerIdle = false
+    private var isTouchActive = false
+    private val playerIdleRunnable = Runnable {
+        if (isTouchActive) {
+            // Still holding the stick or the screen, so not standing still
+            restartIdleTimer()
+        } else {
+            isPlayerIdle = true
+            updateMiniScreenAlpha()
+        }
+    }
+
     // Whether the screens were swapped automatically because a cutscene was detected
     private var isCutsceneSwapped = false
     private val cutsceneDetector = CutsceneDetector { isCutscene -> onCutsceneChanged(isCutscene) }
@@ -345,6 +366,11 @@ class EmulatorActivity : AppCompatActivity() {
         binding.textFps.visibility = View.INVISIBLE
         binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls()))
         binding.viewLayoutControls.onMiniScreenTapped = { onManualScreenSwap() }
+        binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed ->
+            isMiniScreenHeld = isPressed
+            updateMiniScreenAlpha()
+        }
+        binding.viewLayoutControls.onUserInput = { isTouching -> onUserInput(isTouching) }
         binding.viewLayoutControls.apply {
             setFrontendInputHandler(frontendInputHandler)
             setSystemInputHandler(melonTouchHandler)
@@ -743,6 +769,7 @@ class EmulatorActivity : AppCompatActivity() {
         emulatorMotionManager.resume()
         updateAnimatedBackground()
         updateCutsceneDetection()
+        restartIdleTimer()
 
         if (!activeOverlays.hasActiveOverlays()) {
             disableScreenTimeOut()
@@ -851,12 +878,16 @@ class EmulatorActivity : AppCompatActivity() {
         }
         val topView = binding.viewLayoutControls.getLayoutComponentView(topScreen)
         val bottomView = binding.viewLayoutControls.getLayoutComponentView(bottomScreen)
-        binding.viewAnimatedBackground.setScreenRects(listOf(topView?.getRect(), bottomView?.getRect()))
+        binding.viewAnimatedBackground.setScreenRects(listOfNotNull(topView, bottomView).map { it.getRect() to it.onTop })
+        binding.viewAnimatedBackground.miniScreenAlpha = miniScreenAlpha
+        // The small screen window is drawn with the see-through effect
+        val topAlpha = (topView?.baseAlpha ?: 1f) * if (topView?.onTop == true) miniScreenAlpha else 1f
+        val bottomAlpha = (bottomView?.baseAlpha ?: 1f) * if (bottomView?.onTop == true) miniScreenAlpha else 1f
         mainScreenRenderer.updateScreenAreas(
             topView?.getRect(),
             bottomView?.getRect(),
-            topView?.baseAlpha ?: 1f,
-            bottomView?.baseAlpha ?: 1f,
+            topAlpha,
+            bottomAlpha,
             topView?.onTop ?: false,
             bottomView?.onTop ?: false,
         )
@@ -924,6 +955,7 @@ class EmulatorActivity : AppCompatActivity() {
             binding.viewLayoutControls.forwardTouchesWhenSwapped = true
             swapScreen()
             binding.viewLayoutControls.setControlsFaded(true)
+            updateMiniScreenAlpha()
         } else if (!isCutscene && isCutsceneSwapped) {
             isCutsceneSwapped = false
             binding.viewLayoutControls.forwardTouchesWhenSwapped = false
@@ -931,6 +963,39 @@ class EmulatorActivity : AppCompatActivity() {
                 swapScreen()
             }
             binding.viewLayoutControls.setControlsFaded(false)
+            updateMiniScreenAlpha()
+        }
+    }
+
+    private fun onUserInput(isTouching: Boolean) {
+        isTouchActive = isTouching
+        restartIdleTimer()
+        if (isPlayerIdle) {
+            isPlayerIdle = false
+            updateMiniScreenAlpha()
+        }
+    }
+
+    private fun restartIdleTimer() {
+        handler.removeCallbacks(playerIdleRunnable)
+        handler.postDelayed(playerIdleRunnable, MINI_SCREEN_IDLE_DELAY_MS)
+    }
+
+    private fun updateMiniScreenAlpha() {
+        // During cutscenes the small window shows the touch screen, which should stay fully visible
+        val targetAlpha = if (isCutsceneSwapped || isMiniScreenHeld || isPlayerIdle) 1f else MINI_SCREEN_PLAYING_ALPHA
+        if (targetAlpha == miniScreenAlpha) {
+            return
+        }
+
+        miniScreenAlphaAnimator?.cancel()
+        miniScreenAlphaAnimator = ValueAnimator.ofFloat(miniScreenAlpha, targetAlpha).apply {
+            duration = MINI_SCREEN_FADE_DURATION_MS
+            addUpdateListener {
+                miniScreenAlpha = it.animatedValue as Float
+                updateRendererScreenAreas()
+            }
+            start()
         }
     }
 
@@ -943,6 +1008,7 @@ class EmulatorActivity : AppCompatActivity() {
             binding.viewLayoutControls.setControlsFaded(false)
         }
         swapScreen()
+        updateMiniScreenAlpha()
     }
 
     private fun useStickControls(): Boolean {
@@ -1128,13 +1194,16 @@ class EmulatorActivity : AppCompatActivity() {
         choreographerFrameRenderer.stopRendering()
         emulatorMotionManager.pause()
         binding.viewAnimatedBackground.stopAnimation()
+        handler.removeCallbacks(playerIdleRunnable)
         viewModel.pauseEmulator(false)
         viewModel.autoSaveOnLeave()
     }
 
     private fun updateAnimatedBackground() {
         val isEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("animated_background", true)
-        binding.viewAnimatedBackground.isVisible = isEnabled
+        // The view stays visible because it also draws the screen frames
+        binding.viewAnimatedBackground.isVisible = true
+        binding.viewAnimatedBackground.isSceneEnabled = isEnabled
         if (isEnabled) {
             binding.viewAnimatedBackground.startAnimation()
         } else {

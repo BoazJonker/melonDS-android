@@ -2,6 +2,7 @@ package me.magnum.melonds.ui.emulator
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,6 +48,17 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
      * Called when the player taps the small screen window of the "one screen + mini screen" layout.
      */
     var onMiniScreenTapped: (() -> Unit)? = null
+
+    /**
+     * Called when the player starts or stops holding the small screen window.
+     */
+    var onMiniScreenPressedChanged: ((isPressed: Boolean) -> Unit)? = null
+
+    /**
+     * Called for every touch on the controls or the main screen (touches on the small screen window are excluded), with whether a finger is still down.
+     */
+    var onUserInput: ((isTouching: Boolean) -> Unit)? = null
+    private var isMiniScreenGesture = false
 
     /**
      * Whether touches on the main screen are sent to the DS touch screen while it shows the top screen. Used during cutscenes, so that tapping the cutscene
@@ -182,6 +194,22 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         }
     }
 
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            val miniScreenView = listOfNotNull(getLayoutComponentView(LayoutComponent.TOP_SCREEN), getLayoutComponentView(LayoutComponent.BOTTOM_SCREEN))
+                .firstOrNull { it.onTop }
+                ?.view
+            isMiniScreenGesture = miniScreenView != null &&
+                    event.x >= miniScreenView.x && event.x < miniScreenView.x + miniScreenView.width &&
+                    event.y >= miniScreenView.y && event.y < miniScreenView.y + miniScreenView.height
+        }
+        if (!isMiniScreenGesture) {
+            val isTouching = event.actionMasked != MotionEvent.ACTION_UP && event.actionMasked != MotionEvent.ACTION_CANCEL
+            onUserInput?.invoke(isTouching)
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
     private fun updateScreenInputs() {
         val (touchScreenComponent, nonTouchScreenComponent) = if (areScreensSwapped) {
             LayoutComponent.TOP_SCREEN to LayoutComponent.BOTTOM_SCREEN
@@ -194,7 +222,9 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         val mainScreenView = screenViews.firstOrNull { !it.onTop }
         if (miniScreenView != null && mainScreenView != null) {
             // "One screen + mini screen" layout: tapping the small window swaps the screens, and the main screen receives the touch input
-            miniScreenView.view.setOnTouchListener(TapInputHandler { onMiniScreenTapped?.invoke() })
+            miniScreenView.view.setOnTouchListener(
+                TapInputHandler(onPressedChanged = { onMiniScreenPressedChanged?.invoke(it) }) { onMiniScreenTapped?.invoke() }
+            )
             val mainShowsTouchScreen = mainScreenView.component == touchScreenComponent
             val mainScreenHandler = if (mainShowsTouchScreen || forwardTouchesWhenSwapped) {
                 systemInputHandler?.let { TouchscreenInputHandler(it, virtualStylus) }
