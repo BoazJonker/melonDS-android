@@ -19,6 +19,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +47,7 @@ import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import com.squareup.picasso.Picasso
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
@@ -485,7 +487,7 @@ class EmulatorActivity : AppCompatActivity() {
                         ToastEvent.InternalError -> R.string.emulator_stop_internal_error to Toast.LENGTH_LONG
                     }
 
-                    Toast.makeText(this@EmulatorActivity, message, duration).show()
+                    showMessageBanner(message, duration == Toast.LENGTH_LONG)
                 }
             }
         }
@@ -1045,5 +1047,36 @@ class EmulatorActivity : AppCompatActivity() {
         emulatorMotionManager.stop()
         frameRenderCoordinator.stop()
         presentation?.dismiss()
+    }
+
+    /**
+     * Shows a message in the Spirit Tracks styled banner at the top of the screen. The banner slides in, stays visible for a while and then fades out. If this
+     * coroutine is cancelled (because a new message arrived), the banner starts hiding immediately.
+     */
+    private suspend fun showMessageBanner(@StringRes message: Int, isLongMessage: Boolean) {
+        val banner = binding.textMessageBanner
+        val slideOffset = -16 * resources.displayMetrics.density
+
+        banner.animate().cancel()
+        banner.setText(message)
+        banner.alpha = 0f
+        banner.translationY = slideOffset
+        banner.isVisible = true
+        banner.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(200)
+            .start()
+
+        try {
+            delay(if (isLongMessage) 3500 else 2000)
+        } finally {
+            banner.animate()
+                .alpha(0f)
+                .translationY(slideOffset)
+                .setDuration(250)
+                .withEndAction { banner.isVisible = false }
+                .start()
+        }
     }
 }

@@ -40,6 +40,31 @@
             android:textColor="@android:color/white"
             android:text="@string/info_loading"/>
 
+    <TextView
+            android:id="@+id/textMessageBanner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:background="@drawable/st_banner_background"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:elevation="6dp"
+            android:gravity="center"
+            android:fontFamily="serif"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="@color/stInk"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="Your progress has been saved"/>
+
     <androidx.compose.ui.platform.ComposeView
             android:id="@+id/layout_compose"
             android:layout_width="match_parent"
