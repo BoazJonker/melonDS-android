@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -47,6 +46,7 @@ import me.magnum.melonds.domain.model.RomIconFiltering
 import me.magnum.melonds.domain.model.rom.Rom
 import me.magnum.melonds.domain.model.rom.config.RomConfig
 import me.magnum.melonds.ui.common.FullScreen
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.component.dialog.BaseDialog
 import me.magnum.melonds.ui.common.component.dialog.DialogButton
 import me.magnum.melonds.ui.common.component.romlist.DefaultRomItemPadding
@@ -204,7 +204,7 @@ private fun Loading(modifier: Modifier = Modifier) {
         modifier = modifier.padding(16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator()
+        SpiritTracksLoadingIndicator()
     }
 }
 

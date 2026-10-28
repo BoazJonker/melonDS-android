@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -60,6 +59,7 @@ import me.magnum.melonds.common.contracts.FilePickerContract
 import me.magnum.melonds.domain.model.Background
 import me.magnum.melonds.extensions.nameWithoutExtension
 import me.magnum.melonds.ui.backgrounds.BackgroundsViewModel
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.component.dialog.TextInputDialog
 import me.magnum.melonds.ui.common.component.dialog.rememberTextInputDialogState
 import me.magnum.melonds.utils.BitmapRegionDecoderCompat
@@ -186,10 +186,7 @@ fun BackgroundListScreen(
 @Composable
 private fun Loading(modifier: Modifier) {
     Box(modifier) {
-        CircularProgressIndicator(
-            modifier = Modifier.align(Alignment.Center),
-            color = MaterialTheme.colors.secondary,
-        )
+        SpiritTracksLoadingIndicator(Modifier.align(Alignment.Center))
     }
 }
 

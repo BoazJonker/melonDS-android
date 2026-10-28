@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -35,6 +34,7 @@ import me.magnum.melonds.domain.model.rom.config.RomConfig
 import me.magnum.melonds.domain.model.rom.config.RuntimeConsoleType
 import me.magnum.melonds.domain.model.rom.config.RuntimeMicSource
 import me.magnum.melonds.ui.common.MelonPreviewSet
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.component.dialog.TextInputDialog
 import me.magnum.melonds.ui.common.component.dialog.rememberTextInputDialogState
 import me.magnum.melonds.ui.common.preference.ActionLauncherItem
@@ -71,10 +71,7 @@ fun RomConfigUi(
 @Composable
 private fun Loading(modifier: Modifier) {
     Box(modifier) {
-        CircularProgressIndicator(
-            modifier = Modifier.align(Alignment.Center),
-            color = MaterialTheme.colors.onSurface,
-        )
+        SpiritTracksLoadingIndicator(Modifier.align(Alignment.Center))
     }
 }
 

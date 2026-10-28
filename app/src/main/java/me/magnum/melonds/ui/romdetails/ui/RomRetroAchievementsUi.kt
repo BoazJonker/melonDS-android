@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import me.magnum.melonds.R
 import me.magnum.melonds.domain.model.retroachievements.RAUserAchievement
 import me.magnum.melonds.ui.common.MelonPreviewSet
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.achievements.ui.model.AchievementUiModel
 import me.magnum.melonds.ui.common.melonButtonColors
 import me.magnum.melonds.ui.romdetails.model.AchievementBucketUiModel
@@ -154,7 +154,7 @@ private fun Loading(modifier: Modifier) {
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = MaterialTheme.colors.secondary)
+        SpiritTracksLoadingIndicator()
     }
 }
 

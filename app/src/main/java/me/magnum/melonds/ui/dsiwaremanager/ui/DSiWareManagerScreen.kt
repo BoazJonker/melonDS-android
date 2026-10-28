@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
@@ -70,6 +69,7 @@ import me.magnum.melonds.domain.model.dsinand.DSiWareTitleFileType
 import me.magnum.melonds.domain.model.dsinand.ImportDSiWareTitleResult
 import me.magnum.melonds.ui.common.FabActionItem
 import me.magnum.melonds.ui.common.MultiActionFloatingActionButton
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.melonButtonColors
 import me.magnum.melonds.ui.dsiwaremanager.DSiWareManagerViewModel
 import me.magnum.melonds.ui.dsiwaremanager.model.DSiWareManagerUiState
@@ -196,7 +196,7 @@ fun DSiWareManagerScreen(
             properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
             onDismissRequest = { },
         ) {
-            CircularProgressIndicator(color = MaterialTheme.colors.secondary)
+            SpiritTracksLoadingIndicator()
         }
     }
 
@@ -268,10 +268,7 @@ private fun InvalidSetup(modifier: Modifier, configurationStatus: ConfigurationD
 @Composable
 private fun Loading(modifier: Modifier) {
     Box(modifier) {
-        CircularProgressIndicator(
-            modifier = Modifier.align(Alignment.Center),
-            color = MaterialTheme.colors.secondary,
-        )
+        SpiritTracksLoadingIndicator(Modifier.align(Alignment.Center))
     }
 }
 

@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import me.magnum.melonds.domain.model.rom.Rom
 import me.magnum.melonds.domain.model.rom.config.RomConfig
 import me.magnum.melonds.ui.common.MelonPreviewSet
 import me.magnum.melonds.ui.common.PaddedListBringIntoViewSpec
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.component.romlist.ConfigurableRomItem
 import me.magnum.melonds.ui.common.component.romlist.RomItem
 import me.magnum.melonds.ui.romlist.RomIcon
@@ -57,6 +59,14 @@ fun RomList(
 
     Box(modifier.pullRefresh(pullRefreshState)) {
         when {
+            roms.isNullOrEmpty() && isRefreshing -> {
+                Box(Modifier.fillMaxSize().padding(contentPadding)) {
+                    SpiritTracksLoadingIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        message = stringResource(R.string.searching_for_games),
+                    )
+                }
+            }
             roms == null -> {
                 // This is just a temporary state while ROM data is not loaded
                 Box(Modifier.fillMaxSize())
@@ -95,7 +105,8 @@ fun RomList(
             modifier = Modifier.align(Alignment.TopCenter),
             refreshing = isRefreshing,
             state = pullRefreshState,
-            contentColor = MaterialTheme.colors.secondary,
+            backgroundColor = colorResource(R.color.stParchmentLight),
+            contentColor = colorResource(R.color.stGoldDark),
         )
     }
 }

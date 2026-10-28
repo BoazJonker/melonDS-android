@@ -16,6 +16,7 @@
             android:maxLines="1"
             android:ellipsize="end"
             style="?android:textAppearanceSmall"
+            android:fontFamily="serif"
             tools:text="Super Mario 64 DS" />
 
     <ProgressBar
@@ -24,5 +25,7 @@
             android:layout_height="wrap_content"
             android:max="100"
             android:indeterminate="true"
+            android:indeterminateTint="@color/stGoldDark"
+            android:progressTint="@color/stGoldDark"
             style="?android:attr/progressBarStyleHorizontal" />
 </LinearLayout>

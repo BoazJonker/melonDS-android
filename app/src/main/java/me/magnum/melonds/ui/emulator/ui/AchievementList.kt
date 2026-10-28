@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -64,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.magnum.melonds.R
 import me.magnum.melonds.ui.common.PaddedListBringIntoViewSpec
+import me.magnum.melonds.ui.common.SpiritTracksLoadingIndicator
 import me.magnum.melonds.ui.common.melonButtonColors
 import me.magnum.melonds.ui.romdetails.model.AchievementBucketUiModel
 import me.magnum.melonds.ui.romdetails.model.AchievementSetUiModel
@@ -162,9 +162,7 @@ fun AchievementList(
     ) {
         when (state) {
             RomRetroAchievementsUiState.Loading -> {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colors.secondary,
-                )
+                SpiritTracksLoadingIndicator()
             }
             is RomRetroAchievementsUiState.Ready -> {
                 // This box is just a helper that is able to capture focus above the achievement list. Focus to this component is intercepted and the event is used to scroll
