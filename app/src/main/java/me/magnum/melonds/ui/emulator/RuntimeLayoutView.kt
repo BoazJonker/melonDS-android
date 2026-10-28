@@ -10,12 +10,16 @@ import me.magnum.melonds.domain.model.Input
 import me.magnum.melonds.domain.model.input.SoftInputBehaviour
 import me.magnum.melonds.domain.model.layout.LayoutComponent
 import me.magnum.melonds.ui.common.LayoutView
+import me.magnum.melonds.ui.emulator.input.ActionButtonsInputHandler
 import me.magnum.melonds.ui.emulator.input.ButtonsInputHandler
 import me.magnum.melonds.ui.emulator.input.DpadInputHandler
 import me.magnum.melonds.ui.emulator.input.FrontendInputHandler
 import me.magnum.melonds.ui.emulator.input.IInputListener
 import me.magnum.melonds.ui.emulator.input.SingleButtonInputHandler
+import me.magnum.melonds.ui.emulator.input.StickInputHandler
 import me.magnum.melonds.ui.emulator.input.TouchscreenInputHandler
+import me.magnum.melonds.ui.emulator.input.VirtualStylus
+import me.magnum.melonds.ui.emulator.input.view.StickView
 import me.magnum.melonds.ui.emulator.input.view.ToggleableImageView
 import me.magnum.melonds.ui.emulator.model.ConnectedControllersState
 import me.magnum.melonds.ui.emulator.model.RuntimeInputLayoutConfiguration
@@ -34,6 +38,8 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
     private var isSoftInputVisible = true
     private var areScreensSwapped = false
     private var connectedControllersState: ConnectedControllersState = ConnectedControllersState.NoControllers
+    // Drives the stylus from the stick and action buttons, when the stick control style is used
+    private val virtualStylus = VirtualStylus()
 
     fun setFrontendInputHandler(frontendInputHandler: FrontendInputHandler) {
         this.frontendInputHandler = frontendInputHandler
@@ -89,9 +95,25 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         val inputAlpha = currentRuntimeLayout.softInputOpacity / 100f
 
         val enableHapticFeedback = currentRuntimeLayout.isHapticFeedbackEnabled
+        virtualStylus.inputListener = systemInputHandler
         systemInputHandler?.let {
-            getLayoutComponentView(LayoutComponent.DPAD)?.view?.setOnTouchListener(DpadInputHandler(it, enableHapticFeedback, touchVibrator))
-            getLayoutComponentView(LayoutComponent.BUTTONS)?.view?.setOnTouchListener(ButtonsInputHandler(it, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.DPAD)?.view?.let { dpadView ->
+                val handler = if (dpadView is StickView) {
+                    StickInputHandler(virtualStylus, enableHapticFeedback)
+                } else {
+                    DpadInputHandler(it, enableHapticFeedback, touchVibrator)
+                }
+                dpadView.setOnTouchListener(handler)
+            }
+            getLayoutComponentView(LayoutComponent.BUTTONS)?.view?.let { buttonsView ->
+                // The stick replaces the D-pad, in which case the face buttons are the action buttons
+                val handler = if (getLayoutComponentView(LayoutComponent.DPAD)?.view is StickView) {
+                    ActionButtonsInputHandler(virtualStylus, enableHapticFeedback, touchVibrator)
+                } else {
+                    ButtonsInputHandler(it, enableHapticFeedback, touchVibrator)
+                }
+                buttonsView.setOnTouchListener(handler)
+            }
             getLayoutComponentView(LayoutComponent.BUTTON_L)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.L, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_R)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.R, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_SELECT)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.SELECT, enableHapticFeedback, touchVibrator))
@@ -128,7 +150,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             LayoutComponent.BOTTOM_SCREEN to LayoutComponent.TOP_SCREEN
         }
         systemInputHandler?.let {
-            getLayoutComponentView(touchScreenComponent)?.view?.setOnTouchListener(TouchscreenInputHandler(it))
+            getLayoutComponentView(touchScreenComponent)?.view?.setOnTouchListener(TouchscreenInputHandler(it, virtualStylus))
         }
         getLayoutComponentView(nonTouchScreenComponent)?.view?.setOnTouchListener(null)
     }

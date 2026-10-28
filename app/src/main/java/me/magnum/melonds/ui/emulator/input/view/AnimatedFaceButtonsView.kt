@@ -14,12 +14,22 @@ import me.magnum.melonds.R
 import me.magnum.melonds.domain.model.Input
 
 /**
- * Draws the A, B, X and Y buttons individually, in the same diamond arrangement as the static buttons image, so that each button can be animated separately
- * when pressed.
+ * Draws four buttons individually, in the same diamond arrangement as the static A/B/X/Y image (X top, A right, B bottom, Y left), so that each button can be
+ * animated separately when pressed. [drawables] maps each of those inputs to the image drawn in its position.
  */
-class AnimatedFaceButtonsView(context: Context) : View(context) {
+class AnimatedFaceButtonsView(
+    context: Context,
+    drawables: Map<Input, Int> = FACE_BUTTON_DRAWABLES,
+) : View(context) {
 
-    private companion object {
+    companion object {
+        val FACE_BUTTON_DRAWABLES = mapOf(
+            Input.X to R.drawable.st_face_x,
+            Input.A to R.drawable.st_face_a,
+            Input.B to R.drawable.st_face_b,
+            Input.Y to R.drawable.st_face_y,
+        )
+
         // Positions in a 100x100 space, matching the static buttons drawable
         const val BUTTON_RADIUS = 16f
         // The individual button drawables are drawn with a radius of 46 in a 100x100 viewport
@@ -33,10 +43,10 @@ class AnimatedFaceButtonsView(context: Context) : View(context) {
     }
 
     private val buttons = listOf(
-        FaceButton(Input.X, 50f, 17.5f, loadDrawable(R.drawable.st_face_x)),
-        FaceButton(Input.A, 82.5f, 50f, loadDrawable(R.drawable.st_face_a)),
-        FaceButton(Input.B, 50f, 82.5f, loadDrawable(R.drawable.st_face_b)),
-        FaceButton(Input.Y, 17.5f, 50f, loadDrawable(R.drawable.st_face_y)),
+        FaceButton(Input.X, 50f, 17.5f, loadDrawable(drawables.getValue(Input.X))),
+        FaceButton(Input.A, 82.5f, 50f, loadDrawable(drawables.getValue(Input.A))),
+        FaceButton(Input.B, 50f, 82.5f, loadDrawable(drawables.getValue(Input.B))),
+        FaceButton(Input.Y, 17.5f, 50f, loadDrawable(drawables.getValue(Input.Y))),
     )
 
     private val pressedFilter = PorterDuffColorFilter(0xFFCCCCCC.toInt(), PorterDuff.Mode.MULTIPLY)

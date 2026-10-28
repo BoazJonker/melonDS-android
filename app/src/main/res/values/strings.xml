@@ -160,6 +160,12 @@
     <string name="quick_slot">Quick Slot</string>
     <string name="auto_save_slot">Autosave</string>
     <string name="auto_save">Autosave</string>
+    <string name="exit_hint">To stop playing, save in the game\'s menu, then close the app. Press Back 3 times quickly for settings</string>
+    <string name="continue_prompt_title">Continue your journey?</string>
+    <string name="continue_prompt_message">Autosave from %1$s</string>
+    <string name="continue_from_autosave">Continue from autosave</string>
+    <string name="load_game_save">Load game save</string>
+    <string name="control_style">Controls</string>
     <string name="searching_for_games">Searching for games…</string>
     <string name="loading_game_subtitle">Next stop: your adventure</string>
     <string name="auto_saved">Your progress has been saved</string>
@@ -565,6 +571,11 @@
         <item>HQ4X</item>
         <item>Quilez</item>
         <item>LCD</item>
+    </string-array>
+
+    <string-array name="control_style_options">
+        <item>Stick and action buttons (switches to touch when you touch the screen)</item>
+        <item>DS buttons</item>
     </string-array>
 
     <string-array name="auto_save_interval_options">

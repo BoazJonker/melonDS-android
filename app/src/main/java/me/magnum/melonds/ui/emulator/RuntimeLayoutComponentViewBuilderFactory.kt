@@ -6,9 +6,14 @@ import me.magnum.melonds.ui.common.LayoutComponentViewBuilderFactory
 import me.magnum.melonds.ui.common.componentbuilders.*
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeButtonsLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeScreenLayoutComponentViewBuilder
+import me.magnum.melonds.ui.emulator.input.componentbuilder.StickLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.ToggleableSingleButtonLayoutComponentViewBuilder
 
-class RuntimeLayoutComponentViewBuilderFactory : LayoutComponentViewBuilderFactory {
+/**
+ * @param useStickControls Whether to replace the D-pad with an analog stick and the A/B/X/Y buttons with action buttons that control the game through stylus
+ * gestures
+ */
+class RuntimeLayoutComponentViewBuilderFactory(private val useStickControls: Boolean = false) : LayoutComponentViewBuilderFactory {
     private val layoutComponentViewBuilderCache = mutableMapOf<LayoutComponent, LayoutComponentViewBuilder>()
 
     override fun getLayoutComponentViewBuilder(layoutComponent: LayoutComponent): LayoutComponentViewBuilder {
@@ -16,8 +21,8 @@ class RuntimeLayoutComponentViewBuilderFactory : LayoutComponentViewBuilderFacto
             val builder = when (layoutComponent) {
                 LayoutComponent.TOP_SCREEN -> RuntimeScreenLayoutComponentViewBuilder()
                 LayoutComponent.BOTTOM_SCREEN -> RuntimeScreenLayoutComponentViewBuilder()
-                LayoutComponent.DPAD -> DpadLayoutComponentViewBuilder()
-                LayoutComponent.BUTTONS -> RuntimeButtonsLayoutComponentViewBuilder()
+                LayoutComponent.DPAD -> if (useStickControls) StickLayoutComponentViewBuilder() else DpadLayoutComponentViewBuilder()
+                LayoutComponent.BUTTONS -> RuntimeButtonsLayoutComponentViewBuilder(useActionButtons = useStickControls)
                 LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE,
                 LayoutComponent.BUTTON_MICROPHONE_TOGGLE,
                 LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> ToggleableSingleButtonLayoutComponentViewBuilder(layoutComponent)

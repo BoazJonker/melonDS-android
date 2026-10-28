@@ -3,6 +3,15 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <ListPreference
+            android:key="control_style"
+            android:title="@string/control_style"
+            android:summary="%s"
+            app:iconSpaceReserved="false"
+            android:entries="@array/control_style_options"
+            android:entryValues="@array/control_style_values"
+            android:defaultValue="stick" />
+
     <Preference
             android:key="input_key_mapping"
             android:title="@string/key_mapping"

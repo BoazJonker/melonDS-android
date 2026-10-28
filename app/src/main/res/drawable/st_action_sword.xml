@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spirit Tracks styled on-screen button. Generated from shapes, no game assets -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="#3B2412"
+        android:pathData="M2.00,50.00a48.00,48.00 0 1,0 96.00,0a48.00,48.00 0 1,0 -96.00,0z" />
+    <path
+        android:fillColor="#E2B54A"
+        android:pathData="M6.00,50.00a44.00,44.00 0 1,0 88.00,0a44.00,44.00 0 1,0 -88.00,0z" />
+    <path
+        android:fillColor="#E6D3A3"
+        android:pathData="M10.00,50.00a40.00,40.00 0 1,0 80.00,0a40.00,40.00 0 1,0 -80.00,0z" />
+    <path
+        android:fillColor="#F6EDD3"
+        android:pathData="M12.00,48.00a38.00,38.00 0 1,0 76.00,0a38.00,38.00 0 1,0 -76.00,0z" />
+    <group
+        android:pivotX="50"
+        android:pivotY="50"
+        android:rotation="45">
+        <path
+            android:fillColor="#F7F9FB"
+            android:pathData="M50,18l7,9v30h-14v-30z"
+            android:strokeColor="#3A2614"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#5D6F86"
+            android:pathData="M39.00,57.00h22.00a3.00,3.00 0 0 1 3.00,3.00v1.00a3.00,3.00 0 0 1 -3.00,3.00h-22.00a3.00,3.00 0 0 1 -3.00,-3.00v-1.00a3.00,3.00 0 0 1 3.00,-3.00z"
+            android:strokeColor="#3A2614"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#7A4A25"
+            android:pathData="M47.00,64.00h6.00a1.00,1.00 0 0 1 1.00,1.00v10.00a1.00,1.00 0 0 1 -1.00,1.00h-6.00a1.00,1.00 0 0 1 -1.00,-1.00v-10.00a1.00,1.00 0 0 1 1.00,-1.00z"
+            android:strokeColor="#3A2614"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#E2B54A"
+            android:pathData="M45.00,80.00a5.00,5.00 0 1,0 10.00,0a5.00,5.00 0 1,0 -10.00,0z"
+            android:strokeColor="#3A2614"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

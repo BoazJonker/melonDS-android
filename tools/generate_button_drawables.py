@@ -68,6 +68,24 @@ def dpad():
     ]
     return shapes
 
+def action_disk():
+    return [
+        (circle(50, 50, 48), WOOD),
+        (circle(50, 50, 44), GOLD),
+        (circle(50, 50, 40), FACE_SHADE),
+        (circle(50, 48, 38), FACE),
+    ]
+
+SWORD_ICON = [('rotate', 45, [
+    ('M50,18l7,9v30h-14v-30z', '#F7F9FB', INK, 3),
+    (rrect(36, 57, 28, 7, 3), '#5D6F86', INK, 3),
+    (rrect(46, 64, 8, 12, 1), '#7A4A25', INK, 3),
+    (circle(50, 80, 5), GOLD, INK, 3),
+])]
+SPIN_ICON = [('M50,24a26,26 0 1,1 -24,16', None, INK, 6), ('M18,36l10,-12l6,14z', INK)]
+ROLL_ICON = [(circle(46, 52, 15), None, INK, 6), ('M22,70h8M36,70h8M50,70h8M64,70h4', None, INK, 5), ('M66,30l12,8l-12,8z', INK)]
+ITEM_ICON = [('M30,64q20,-40 40,0', None, INK, 7), ('M34,62q16,-28 32,0', None, GOLD, 3), (circle(50, 72, 4), INK)]
+
 DRAWABLES = {
     'buttons': [*disk_button(50, 17.5, 16, 'X', 13), *disk_button(82.5, 50, 16, 'A', 13),
                 *disk_button(50, 82.5, 16, 'B', 13), *disk_button(17.5, 50, 16, 'Y', 13)],
@@ -81,17 +99,47 @@ DRAWABLES = {
     'st_face_b': disk_button(50, 50, 46, 'B', 38),
     'st_face_x': disk_button(50, 50, 46, 'X', 38),
     'st_face_y': disk_button(50, 50, 46, 'Y', 38),
+    # Action buttons for the stick control style
+    'st_action_sword': action_disk() + SWORD_ICON,
+    'st_action_spin': action_disk() + SPIN_ICON,
+    'st_action_roll': action_disk() + ROLL_ICON,
+    'st_action_item': action_disk() + ITEM_ICON,
 }
 
+def vector_shapes(shapes, indent='    '):
+    out = []
+    for shape in shapes:
+        if shape[0] == 'rotate':
+            inner = vector_shapes(shape[2], indent + '    ')
+            out.append(f'{indent}<group\n{indent}    android:pivotX="50"\n{indent}    android:pivotY="50"\n{indent}    android:rotation="{shape[1]}">\n{inner}\n{indent}</group>')
+            continue
+        d, fill = shape[0], shape[1]
+        attrs = [f'android:pathData="{d}"']
+        if fill:
+            attrs.insert(0, f'android:fillColor="{fill}"')
+        if len(shape) > 2:
+            attrs += [f'android:strokeColor="{shape[2]}"', f'android:strokeWidth="{shape[3]}"', 'android:strokeLineCap="round"', 'android:strokeLineJoin="round"']
+        out.append(f'{indent}<path\n' + '\n'.join(f'{indent}    {a}' for a in attrs) + ' />')
+    return '\n'.join(out)
+
 def to_vector(name, shapes):
-    paths = '\n'.join(f'    <path\n        android:fillColor="{c}"\n        android:pathData="{d}" />' for d, c in shapes)
     return (f'<?xml version="1.0" encoding="utf-8"?>\n<!-- Spirit Tracks styled on-screen button. Generated from shapes, no game assets -->\n'
             f'<vector xmlns:android="http://schemas.android.com/apk/res/android"\n    android:width="100dp"\n    android:height="100dp"\n'
-            f'    android:viewportWidth="100"\n    android:viewportHeight="100">\n{paths}\n</vector>\n')
+            f'    android:viewportWidth="100"\n    android:viewportHeight="100">\n{vector_shapes(shapes)}\n</vector>\n')
+
+def svg_shapes(shapes):
+    out = ''
+    for shape in shapes:
+        if shape[0] == 'rotate':
+            out += f'<g transform="rotate({shape[1]} 50 50)">{svg_shapes(shape[2])}</g>'
+            continue
+        fill = shape[1] or 'none'
+        stroke = f' stroke="{shape[2]}" stroke-width="{shape[3]}" stroke-linecap="round" stroke-linejoin="round"' if len(shape) > 2 else ''
+        out += f'<path fill="{fill}"{stroke} d="{shape[0]}"/>'
+    return out
 
 def to_svg(shapes):
-    return ('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">'
-            + ''.join(f'<path fill="{c}" d="{d}"/>' for d, c in shapes) + '</svg>')
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">' + svg_shapes(shapes) + '</svg>'
 
 for name, shapes in DRAWABLES.items():
     open(os.path.join(OUT_RES, f'{name}.xml'), 'w').write(to_vector(name, shapes))

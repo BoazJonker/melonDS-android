@@ -270,6 +270,7 @@ class EmulatorViewModel @Inject constructor(
                 startTrackingFps()
                 startTrackingPlayTime(rom)
                 startAutoSaving(rom)
+                offerToContinueFromAutoSave(rom)
             }
         }
     }
@@ -464,6 +465,44 @@ class EmulatorViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * If there's an autosave for this game, pauses the game and asks the player whether to continue from it. This replaces loading the autosave from the
+     * pause menu, which is not available.
+     */
+    private suspend fun offerToContinueFromAutoSave(rom: Rom) {
+        if (!emulatorSession.areSaveStateLoadsAllowed()) {
+            return
+        }
+
+        val autoSaveSlot = runCatching { saveStatesRepository.getRomSaveStates(rom) }.getOrNull()?.getOrNull(SaveStateSlot.AUTO_SAVE_SLOT) ?: return
+        if (!autoSaveSlot.exists) {
+            return
+        }
+
+        pauseEmulation()
+        _uiEvent.emit(EmulatorUiEvent.ShowContinuePrompt(autoSaveSlot))
+    }
+
+    /**
+     * Saves the game to the autosave slot when the player leaves the app, so that no progress is lost if the app is closed. The emulator is left paused.
+     */
+    fun autoSaveOnLeave() {
+        val rom = (_emulatorState.value as? EmulatorState.RunningRom)?.rom ?: return
+        if (settingsRepository.getAutoSaveIntervalMinutes() <= 0) {
+            return
+        }
+
+        sessionCoroutineScope.launch {
+            pauseEmulation()
+            val autoSaveSlot = SaveStateSlot(SaveStateSlot.AUTO_SAVE_SLOT, false, null, null)
+            runCatching { saveRomState(rom, autoSaveSlot) }
+        }
+    }
+
+    fun openSettings() {
+        _uiEvent.tryEmit(EmulatorUiEvent.OpenScreen.SettingsScreen)
     }
 
     fun onPauseMenuOptionSelected(option: PauseMenuOption) {

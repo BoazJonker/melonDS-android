@@ -20,5 +20,6 @@ sealed class EmulatorUiEvent {
     }
     data object ShowAchievementList : EmulatorUiEvent()
     data object ShowPendingSubmissionsDialog : EmulatorUiEvent()
+    data class ShowContinuePrompt(val autoSaveSlot: SaveStateSlot) : EmulatorUiEvent()
     data object CloseEmulator : EmulatorUiEvent()
 }

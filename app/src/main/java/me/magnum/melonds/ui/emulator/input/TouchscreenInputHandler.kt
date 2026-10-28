@@ -8,13 +8,18 @@ import me.magnum.melonds.MelonEmulator.onScreenRelease
 import me.magnum.melonds.domain.model.Input
 import me.magnum.melonds.domain.model.Point
 
-class TouchscreenInputHandler(inputListener: IInputListener) : BaseInputHandler(inputListener) {
+/**
+ * @param virtualStylus When the stick control style is used, real touches are reported to it so that real touches take priority over the stick and action
+ * buttons
+ */
+class TouchscreenInputHandler(inputListener: IInputListener, private val virtualStylus: VirtualStylus? = null) : BaseInputHandler(inputListener) {
     private val touchPoint: Point = Point()
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                virtualStylus?.onRealTouchStarted()
                 inputListener.onKeyPress(Input.TOUCHSCREEN)
                 inputListener.onTouch(normalizeTouchCoordinates(event, v.width, v.height))
             }
@@ -24,6 +29,7 @@ class TouchscreenInputHandler(inputListener: IInputListener) : BaseInputHandler(
             MotionEvent.ACTION_UP -> {
                 inputListener.onKeyReleased(Input.TOUCHSCREEN)
                 onScreenRelease()
+                virtualStylus?.onRealTouchEnded()
             }
         }
         return true

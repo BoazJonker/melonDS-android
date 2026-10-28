@@ -8,6 +8,8 @@ import android.hardware.input.InputManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.SystemClock
+import android.text.format.DateUtils
 import android.view.Display
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -115,6 +117,9 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class EmulatorActivity : AppCompatActivity() {
     companion object {
+        private const val SETTINGS_BACK_PRESS_COUNT = 3
+        private const val SETTINGS_BACK_PRESS_WINDOW_MS = 1500L
+
         const val KEY_ROM = "rom"
         const val KEY_PATH = "PATH"
         const val KEY_URI = "uri"
@@ -210,7 +215,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
 
         override fun onPausePressed() {
-            viewModel.pauseEmulator(true)
+            handleBackPressed()
         }
 
         override fun onFastForwardPressed() {
@@ -247,6 +252,9 @@ class EmulatorActivity : AppCompatActivity() {
             viewModel.onOpenRewind()
         }
     }
+    private var backPressCount = 0
+    private var firstBackPressTime = 0L
+
     private val settingsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.onSettingsChanged()
         setupSustainedPerformanceMode()
@@ -331,7 +339,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
 
         binding.textFps.visibility = View.INVISIBLE
-        binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory())
+        binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls()))
         binding.viewLayoutControls.apply {
             setFrontendInputHandler(frontendInputHandler)
             setSystemInputHandler(melonTouchHandler)
@@ -529,6 +537,7 @@ class EmulatorActivity : AppCompatActivity() {
                             activeOverlays.addActiveOverlay(EmulatorOverlay.PENDING_SUBMISSION_CONFIRM_EXIT)
                             showPendingSubmissionsDialog.value = true
                         }
+                        is EmulatorUiEvent.ShowContinuePrompt -> showContinuePrompt(it.autoSaveSlot)
                     }
                 }
             }
@@ -659,7 +668,7 @@ class EmulatorActivity : AppCompatActivity() {
                 frameRenderCoordinator = frameRenderCoordinator,
             ).apply {
                 layoutView.apply {
-                    setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory())
+                    setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls()))
                     setFrontendInputHandler(frontendInputHandler)
                     setSystemInputHandler(melonTouchHandler)
                     viewModel.runtimeLayout.value?.let {
@@ -859,8 +868,48 @@ class EmulatorActivity : AppCompatActivity() {
         nativeInputListener = InputProcessor(controllerConfiguration, melonTouchHandler, frontendInputHandler)
     }
 
+    /**
+     * The emulator's pause menu is not available: the game is meant to be saved and quit through its own menu. Pressing Back shows a hint instead, and pressing
+     * it three times quickly opens the settings.
+     */
     private fun handleBackPressed() {
-        viewModel.pauseEmulator(true)
+        val now = SystemClock.uptimeMillis()
+        if (now - firstBackPressTime > SETTINGS_BACK_PRESS_WINDOW_MS) {
+            firstBackPressTime = now
+            backPressCount = 0
+        }
+        backPressCount++
+
+        if (backPressCount >= SETTINGS_BACK_PRESS_COUNT) {
+            backPressCount = 0
+            firstBackPressTime = 0L
+            viewModel.openSettings()
+        } else if (backPressCount == 1) {
+            lifecycleScope.launch {
+                showMessageBanner(R.string.exit_hint, isLongMessage = true)
+            }
+        }
+    }
+
+    private fun useStickControls(): Boolean {
+        return PreferenceManager.getDefaultSharedPreferences(this).getString("control_style", "stick") == "stick"
+    }
+
+    private fun showContinuePrompt(autoSaveSlot: SaveStateSlot) {
+        val savedAgo = autoSaveSlot.lastUsedDate?.let {
+            DateUtils.getRelativeTimeSpanString(it.time, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
+        }
+        AlertDialog.Builder(this, R.style.SpiritTracks_Dialog)
+            .setTitle(R.string.continue_prompt_title)
+            .setMessage(savedAgo?.let { getString(R.string.continue_prompt_message, it) })
+            .setPositiveButton(R.string.continue_from_autosave) { _, _ ->
+                viewModel.loadStateFromSlot(autoSaveSlot)
+            }
+            .setNegativeButton(R.string.load_game_save) { _, _ ->
+                viewModel.resumeEmulator()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun showPauseMenu(pauseMenu: PauseMenu) {
@@ -1026,6 +1075,7 @@ class EmulatorActivity : AppCompatActivity() {
         emulatorMotionManager.pause()
         binding.viewAnimatedBackground.stopAnimation()
         viewModel.pauseEmulator(false)
+        viewModel.autoSaveOnLeave()
     }
 
     private fun updateAnimatedBackground() {
