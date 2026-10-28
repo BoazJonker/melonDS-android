@@ -27,7 +27,7 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
         // Size of the downscaled copy of both screens used to detect which screen is changing. The top half holds the top screen
         const val SAMPLE_WIDTH = 16
         const val SAMPLE_HEIGHT = 32
-        const val SAMPLE_FRAME_INTERVAL = 6
+        const val SAMPLE_FRAME_INTERVAL = 8
     }
 
     /**
@@ -40,6 +40,8 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
     private val configurationLock = Any()
     private var rendererConfiguration: RuntimeRendererConfiguration? = null
     private var mustUpdateConfiguration = false
+    // Set when only the screen positions or opacity changed. Unlike a configuration change, this doesn't require rebuilding the shader
+    private var mustUpdateScreenCoordinates = false
     private var isBackgroundPositionDirty = false
     private var isBackgroundLoaded = false
 
@@ -60,7 +62,11 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
     private var sampleVbo = 0
     private var sampleVao = 0
     private var sampleFrameCounter = 0
-    private val samplePixels = ByteBuffer.allocateDirect(SAMPLE_WIDTH * SAMPLE_HEIGHT * 4).order(ByteOrder.nativeOrder())
+    // Two pixel buffers used in turn, so that reading a sample back never makes the GPU wait: each sample is copied into one buffer and read on the next
+    // sample, once the copy has finished
+    private val samplePixelBuffers = IntArray(2)
+    private var samplePixelBufferIndex = 0
+    private var hasPendingSample = false
     private val previousSamplePixels = ByteArray(SAMPLE_WIDTH * SAMPLE_HEIGHT * 4)
     private val currentSamplePixels = ByteArray(SAMPLE_WIDTH * SAMPLE_HEIGHT * 4)
     private var hasPreviousSample = false
@@ -107,7 +113,7 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
             this.bottomAlpha = bottomAlpha
             this.topOnTop = topOnTop
             this.bottomOnTop = bottomOnTop
-            mustUpdateConfiguration = true
+            mustUpdateScreenCoordinates = true
         }
     }
 
@@ -273,6 +279,10 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
             if (mustUpdateConfiguration) {
                 applyRendererConfiguration()
                 mustUpdateConfiguration = false
+                mustUpdateScreenCoordinates = false
+            } else if (mustUpdateScreenCoordinates) {
+                updateScreenCoordinates()
+                mustUpdateScreenCoordinates = false
             }
         }
 
@@ -362,6 +372,14 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
         GLES30.glVertexAttribPointer(backgroundShader.attribUv, 2, GLES30.GL_FLOAT, false, 4 * Float.SIZE_BYTES, 2 * Float.SIZE_BYTES)
         GLES30.glBindVertexArray(0)
         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0)
+
+        GLES30.glGenBuffers(2, samplePixelBuffers, 0)
+        samplePixelBuffers.forEach {
+            GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, it)
+            GLES30.glBufferData(GLES30.GL_PIXEL_PACK_BUFFER, SAMPLE_WIDTH * SAMPLE_HEIGHT * 4, null, GLES30.GL_STREAM_READ)
+        }
+        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, 0)
+        hasPendingSample = false
         hasPreviousSample = false
     }
 
@@ -387,14 +405,33 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 6)
         GLES30.glBindVertexArray(0)
 
-        samplePixels.position(0)
-        GLES30.glReadPixels(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, samplePixels)
+        // Start copying this sample into one buffer (asynchronously), and read the previous sample from the other buffer
+        val writeBuffer = samplePixelBuffers[samplePixelBufferIndex]
+        val readBuffer = samplePixelBuffers[1 - samplePixelBufferIndex]
+        samplePixelBufferIndex = 1 - samplePixelBufferIndex
+        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, writeBuffer)
+        GLES30.glReadPixels(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, 0)
 
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, previousFramebuffer[0])
         GLES30.glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3])
 
-        samplePixels.position(0)
-        samplePixels.get(currentSamplePixels)
+        if (!hasPendingSample) {
+            GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, 0)
+            hasPendingSample = true
+            return
+        }
+
+        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, readBuffer)
+        val mappedPixels = GLES30.glMapBufferRange(GLES30.GL_PIXEL_PACK_BUFFER, 0, SAMPLE_WIDTH * SAMPLE_HEIGHT * 4, GLES30.GL_MAP_READ_BIT) as? ByteBuffer
+        if (mappedPixels == null) {
+            GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, 0)
+            return
+        }
+        mappedPixels.order(ByteOrder.nativeOrder()).position(0)
+        mappedPixels.get(currentSamplePixels)
+        GLES30.glUnmapBuffer(GLES30.GL_PIXEL_PACK_BUFFER)
+        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, 0)
+
         if (hasPreviousSample) {
             // Rows are read from the bottom of the framebuffer, which holds the start of the texture: the top screen
             val halfSize = currentSamplePixels.size / 2

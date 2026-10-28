@@ -53,8 +53,8 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
         )
 
         /**
-         * Light cel-shaded look: colours are gently pulled towards a few brightness bands and strong edges get soft dark outlines, detected with a Sobel filter
-         * on the brightness. Outlines are only drawn on the darker side of an edge, so that text and HUD elements (usually dark on light) keep their shape and
+         * Light cel-shaded look: colours are gently pulled towards a few brightness bands and strong edges get soft dark outlines, detected from the brightness
+         * of the four neighbouring pixels (cheaper than a full Sobel filter). Outlines are only drawn on the darker side of an edge, so that text and HUD elements (usually dark on light) keep their shape and
          * stay readable.
          */
         val ToonShader = ShaderProgramSource(
@@ -78,17 +78,13 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
                     "    float l = dot(color, lumaWeights);\n" +
                     "    float banded = floor(l * bands + 0.5) / bands;\n" +
                     "    vec3 toon = mix(color * (banded / max(l, 0.001)), color, 0.6);\n" +
-                    "    float tl = luma(vec2(-1.0, -1.0));\n" +
                     "    float t = luma(vec2(0.0, -1.0));\n" +
-                    "    float tr = luma(vec2(1.0, -1.0));\n" +
                     "    float ml = luma(vec2(-1.0, 0.0));\n" +
                     "    float mr = luma(vec2(1.0, 0.0));\n" +
-                    "    float bl = luma(vec2(-1.0, 1.0));\n" +
                     "    float b = luma(vec2(0.0, 1.0));\n" +
-                    "    float br = luma(vec2(1.0, 1.0));\n" +
-                    "    float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;\n" +
-                    "    float gy = -tl - 2.0 * t - tr + bl + 2.0 * b + br;\n" +
-                    "    float neighbourhood = (tl + t + tr + ml + mr + bl + b + br) / 8.0;\n" +
+                    "    float gx = 2.0 * (mr - ml);\n" +
+                    "    float gy = 2.0 * (b - t);\n" +
+                    "    float neighbourhood = (t + ml + mr + b) / 4.0;\n" +
                     "    float darkerSide = step(l, neighbourhood);\n" +
                     "    float edge = smoothstep(0.45, 0.9, length(vec2(gx, gy))) * darkerSide;\n" +
                     "    gl_FragColor = vec4(mix(clamp(toon, 0.0, 1.0), outlineColor, edge * 0.45), alpha);\n" +

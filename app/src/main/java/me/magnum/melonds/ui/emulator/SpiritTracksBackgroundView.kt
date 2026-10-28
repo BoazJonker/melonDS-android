@@ -1,6 +1,7 @@
 package me.magnum.melonds.ui.emulator
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -33,8 +34,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private companion object {
-        // Redraw at roughly 30 FPS. The scene moves slowly, so this is smooth enough and saves battery
-        const val FRAME_INTERVAL_MS = 33L
+        // Redraw at roughly 20 FPS. The scene moves slowly, so this is smooth enough and keeps the cost low while the game runs
+        const val FRAME_INTERVAL_MS = 50L
 
         const val TRAIN_SPEED_DP = 70f
         const val TRAIN_PAUSE_SECONDS = 6f
@@ -75,6 +76,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     private val skyPaint = Paint()
     private val sunPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val hillPath = Path()
+    // The sky, sun rays, sun and vignette don't move, so they're drawn once into this image
+    private var skyCache: Bitmap? = null
     private val ridgePath = Path()
     private val farHillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val nearHillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -142,6 +145,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         stopAnimation()
+        skyCache?.recycle()
+        skyCache = null
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -177,6 +182,18 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP,
         )
+
+        skyCache?.recycle()
+        skyCache = null
+        if (w > 0 && h > 0) {
+            skyCache = Bitmap.createBitmap(w, h, Bitmap.Config.RGB_565).also {
+                val cacheCanvas = Canvas(it)
+                cacheCanvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), skyPaint)
+                drawSunRays(cacheCanvas, w * 0.82f, h * 0.14f, maxOf(w, h).toFloat())
+                cacheCanvas.drawCircle(w * 0.82f, h * 0.14f, 46 * density, sunPaint)
+                cacheCanvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), vignettePaint)
+            }
+        }
     }
 
     private fun verticalGradient(top: Float, bottom: Float, topColor: Int, bottomColor: Int): Shader {
@@ -202,10 +219,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         canvas.save()
         screenAreas.forEach { clipOutRect(canvas, it.rect) }
 
-        // Sky, slowly turning sun rays and the sun
-        canvas.drawRect(0f, 0f, w, h, skyPaint)
-        drawSunRays(canvas, w * 0.82f, h * 0.14f, maxOf(w, h), time)
-        canvas.drawCircle(w * 0.82f, h * 0.14f, 46 * density, sunPaint)
+        // Sky, sun rays and the sun, from the cached image
+        skyCache?.let { canvas.drawBitmap(it, 0f, 0f, null) } ?: canvas.drawRect(0f, 0f, w, h, skyPaint)
 
         drawClouds(canvas, w, h, time)
 
@@ -220,7 +235,6 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         drawTrack(canvas, w, h, trackY)
         drawTrain(canvas, w, trackY, time)
 
-        canvas.drawRect(0f, 0f, w, h, vignettePaint)
         canvas.restore()
     }
 
@@ -261,11 +275,11 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         }
     }
 
-    private fun drawSunRays(canvas: Canvas, cx: Float, cy: Float, length: Float, time: Float) {
+    private fun drawSunRays(canvas: Canvas, cx: Float, cy: Float, length: Float) {
         fillPaint.color = 0x2EFFF4C4
         val rayCount = 10
         for (i in 0 until rayCount) {
-            val angle = (i.toFloat() / rayCount * 360f) + time * 3f
+            val angle = i.toFloat() / rayCount * 360f
             rect.set(cx - length, cy - length, cx + length, cy + length)
             canvas.drawArc(rect, angle, 7f, true, fillPaint)
         }
