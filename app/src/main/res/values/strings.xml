@@ -166,6 +166,12 @@
     <string name="continue_from_autosave">Continue from autosave</string>
     <string name="load_game_save">Load game save</string>
     <string name="control_style">Controls</string>
+    <string name="action_sword">Sword</string>
+    <string name="action_spin">Spin</string>
+    <string name="action_item">Item</string>
+    <string name="action_roll">Roll</string>
+    <string name="button_labels">Button names</string>
+    <string name="button_labels_summary">Show the names of the action buttons (Sword, Spin, Item, Roll)</string>
     <string name="searching_for_games">Searching for games…</string>
     <string name="loading_game_subtitle">Next stop: your adventure</string>
     <string name="auto_saved">Your progress has been saved</string>
@@ -573,6 +579,7 @@
         <item>HQ4X</item>
         <item>Quilez</item>
         <item>LCD</item>
+        <item>Toon (cel-shaded)</item>
     </string-array>
 
     <string-array name="control_style_options">

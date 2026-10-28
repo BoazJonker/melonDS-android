@@ -13,7 +13,9 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -32,14 +34,18 @@ fun SpiritTracksLoadingIndicator(
     message: String = stringResource(R.string.info_loading),
 ) {
     val parchmentBrush = Brush.verticalGradient(
-        listOf(colorResource(R.color.stParchmentLight), colorResource(R.color.stParchment)),
+        listOf(Color(0xFFFFFBEE), colorResource(R.color.stParchmentLight), Color(0xFFE4D0A0)),
     )
+
+    val woodBrush = Brush.verticalGradient(listOf(Color(0xFF8A5A32), colorResource(R.color.stWood), Color(0xFF2A180B)))
+    val goldBrush = Brush.verticalGradient(listOf(Color(0xFFFBE7A1), colorResource(R.color.stGold), Color(0xFF9C6E1E)))
 
     Column(
         modifier = modifier
-            .border(3.dp, colorResource(R.color.stWoodDark), RoundedCornerShape(12.dp))
+            .shadow(8.dp, RoundedCornerShape(12.dp))
+            .border(3.dp, woodBrush, RoundedCornerShape(12.dp))
             .padding(3.dp)
-            .border(2.dp, colorResource(R.color.stGold), RoundedCornerShape(9.dp))
+            .border(2.dp, goldBrush, RoundedCornerShape(9.dp))
             .padding(2.dp)
             .background(parchmentBrush, RoundedCornerShape(7.dp))
             .padding(horizontal = 28.dp, vertical = 18.dp),

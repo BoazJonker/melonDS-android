@@ -141,7 +141,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             getLayoutComponentView(LayoutComponent.BUTTONS)?.view?.let { buttonsView ->
                 // The stick replaces the D-pad, in which case the face buttons are the action buttons
                 val handler = if (getLayoutComponentView(LayoutComponent.DPAD)?.view is StickView) {
-                    ActionButtonsInputHandler(virtualStylus, enableHapticFeedback, touchVibrator)
+                    ActionButtonsInputHandler(virtualStylus, enableHapticFeedback)
                 } else {
                     ButtonsInputHandler(it, enableHapticFeedback, touchVibrator)
                 }

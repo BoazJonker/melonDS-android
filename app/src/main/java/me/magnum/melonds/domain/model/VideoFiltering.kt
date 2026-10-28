@@ -8,5 +8,6 @@ enum class VideoFiltering {
     HQ4X,
     QUILEZ,
     LCD,
-    SCANLINES
+    SCANLINES,
+    TOON,
 }

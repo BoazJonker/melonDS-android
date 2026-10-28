@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Dialog window background: the Spirit Tracks styled panel with some space around it -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:inset="16dp">
-    <shape android:shape="rectangle">
-        <solid android:color="@color/stParchmentLight" />
-        <stroke android:width="3dp" android:color="@color/stWood" />
-        <corners android:radius="12dp" />
-    </shape>
-</inset>
+    android:drawable="@drawable/st_banner_background"
+    android:inset="16dp" />

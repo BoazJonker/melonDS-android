@@ -1,25 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Spirit Tracks styled message banner: dark wood frame, gold trim and a parchment panel -->
+<!-- Spirit Tracks styled panel: a bevelled dark wood frame with a gold rim, and a softly lit parchment panel -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
+    <!-- Drop shadow -->
+    <item android:top="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#40000000" />
+            <corners android:radius="13dp" />
+        </shape>
+    </item>
+    <!-- Dark outer edge -->
+    <item android:bottom="2dp">
         <shape android:shape="rectangle">
             <solid android:color="@color/stWoodDark" />
             <corners android:radius="12dp" />
         </shape>
     </item>
-    <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp">
+    <!-- Bevelled wood: lighter at the top, darker at the bottom -->
+    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="3dp">
         <shape android:shape="rectangle">
-            <solid android:color="@color/stGold" />
-            <corners android:radius="9dp" />
+            <gradient android:angle="270" android:startColor="#FF8A5A32" android:centerColor="@color/stWood" android:endColor="#FF2A180B" />
+            <corners android:radius="11dp" />
         </shape>
     </item>
-    <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="5dp">
+    <!-- Gold rim -->
+    <item android:left="3.5dp" android:top="3.5dp" android:right="3.5dp" android:bottom="5.5dp">
+        <shape android:shape="rectangle">
+            <gradient android:angle="270" android:startColor="#FFFBE7A1" android:centerColor="@color/stGold" android:endColor="#FF9C6E1E" />
+            <corners android:radius="8.5dp" />
+        </shape>
+    </item>
+    <!-- Thin dark line between the rim and the parchment -->
+    <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="7dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FF2A180B" />
+            <corners android:radius="7dp" />
+        </shape>
+    </item>
+    <!-- Parchment, lit from the top left -->
+    <item android:left="5.8dp" android:top="5.8dp" android:right="5.8dp" android:bottom="7.8dp">
         <shape android:shape="rectangle">
             <gradient
-                android:angle="270"
-                android:startColor="@color/stParchmentLight"
-                android:endColor="@color/stParchment" />
-            <corners android:radius="7dp" />
+                android:type="radial"
+                android:gradientRadius="140%p"
+                android:centerX="0.3"
+                android:centerY="0.15"
+                android:startColor="#FFFFFBEE"
+                android:centerColor="@color/stParchmentLight"
+                android:endColor="#FFE4D0A0" />
+            <corners android:radius="6.2dp" />
+        </shape>
+    </item>
+    <!-- Slightly darker bottom edge of the parchment, as if it curves away -->
+    <item android:left="5.8dp" android:top="5.8dp" android:right="5.8dp" android:bottom="7.8dp">
+        <shape android:shape="rectangle">
+            <gradient android:angle="90" android:startColor="#29785028" android:centerColor="#00785028" android:endColor="#00785028" />
+            <corners android:radius="6.2dp" />
         </shape>
     </item>
 </layer-list>

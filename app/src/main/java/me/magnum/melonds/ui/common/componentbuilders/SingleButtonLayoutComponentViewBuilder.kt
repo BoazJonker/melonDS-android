@@ -3,21 +3,32 @@ package me.magnum.melonds.ui.common.componentbuilders
 import android.content.Context
 import android.view.View
 import android.widget.ImageView
+import androidx.core.content.ContextCompat
 import me.magnum.melonds.R
 import me.magnum.melonds.domain.model.layout.LayoutComponent
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilder
+import me.magnum.melonds.ui.emulator.input.view.CapImageView
 
 class SingleButtonLayoutComponentViewBuilder(private val layoutComponent: LayoutComponent) : LayoutComponentViewBuilder() {
 
     private companion object {
         // These buttons have their own fully styled drawables. Every other button is a utility button that gets a round backing
         val FACE_BUTTONS = setOf(LayoutComponent.BUTTON_L, LayoutComponent.BUTTON_R, LayoutComponent.BUTTON_START, LayoutComponent.BUTTON_SELECT)
+
+        // In the plank drawables (100x100), the cap sinks 4 units into the socket
+        const val PLANK_PRESS_DEPTH_FRACTION = 0.04f
     }
 
     override fun build(context: Context): View {
-        return ImageView(context).apply {
-            setImageResource(getInputDrawable())
-            if (layoutComponent !in FACE_BUTTONS) {
+        return if (layoutComponent in FACE_BUTTONS) {
+            // 3D button: the socket is the background and the cap is the image, so that the cap can sink into the socket when pressed
+            CapImageView(context, PLANK_PRESS_DEPTH_FRACTION).apply {
+                background = ContextCompat.getDrawable(context, R.drawable.st_plank_base)
+                setImageResource(getInputDrawable())
+            }
+        } else {
+            ImageView(context).apply {
+                setImageResource(getInputDrawable())
                 applySpiritTracksUtilityButtonStyle()
             }
         }

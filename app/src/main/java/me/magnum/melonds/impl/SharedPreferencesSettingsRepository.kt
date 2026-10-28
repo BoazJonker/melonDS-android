@@ -302,7 +302,7 @@ class SharedPreferencesSettingsRepository(
 
     override fun getVideoFiltering(): Flow<VideoFiltering> {
         return getOrCreatePreferenceSharedFlow("video_filtering") {
-            val filteringPreference = preferences.getString("video_filtering", "quilez")!!
+            val filteringPreference = preferences.getString("video_filtering", "toon")!!
             VideoFiltering.valueOf(filteringPreference.uppercase())
         }
     }

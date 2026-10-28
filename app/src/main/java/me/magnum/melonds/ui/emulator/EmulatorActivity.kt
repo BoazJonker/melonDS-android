@@ -364,7 +364,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
 
         binding.textFps.visibility = View.INVISIBLE
-        binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls()))
+        binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls(), showButtonLabels()))
         binding.viewLayoutControls.onMiniScreenTapped = { onManualScreenSwap() }
         binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed ->
             isMiniScreenHeld = isPressed
@@ -699,7 +699,7 @@ class EmulatorActivity : AppCompatActivity() {
                 frameRenderCoordinator = frameRenderCoordinator,
             ).apply {
                 layoutView.apply {
-                    setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls()))
+                    setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls(), showButtonLabels()))
                     setFrontendInputHandler(frontendInputHandler)
                     setSystemInputHandler(melonTouchHandler)
                     viewModel.runtimeLayout.value?.let {
@@ -1009,6 +1009,10 @@ class EmulatorActivity : AppCompatActivity() {
         }
         swapScreen()
         updateMiniScreenAlpha()
+    }
+
+    private fun showButtonLabels(): Boolean {
+        return PreferenceManager.getDefaultSharedPreferences(this).getBoolean("button_labels", true)
     }
 
     private fun useStickControls(): Boolean {

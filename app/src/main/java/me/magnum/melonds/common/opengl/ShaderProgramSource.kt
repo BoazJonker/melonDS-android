@@ -52,6 +52,45 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
                     "}"
         )
 
+        /**
+         * Cel-shaded look: colours are flattened into a few brightness bands and edges get dark outlines, detected with a Sobel filter on the brightness.
+         */
+        val ToonShader = ShaderProgramSource(
+            TextureFiltering.LINEAR,
+            DEFAULT_VERT_SHADER,
+            "precision mediump float;\n" +
+                    "uniform sampler2D tex;\n" +
+                    "varying vec2 uv;\n" +
+                    "varying float alpha;\n" +
+                    "const vec2 texelSize = vec2(1.0 / $TEXTURE_WIDTH.0, 1.0 / $TEXTURE_HEIGHT.0);\n" +
+                    "const vec3 lumaWeights = vec3(0.299, 0.587, 0.114);\n" +
+                    "const float bands = 5.0;\n" +
+                    "const vec3 outlineColor = vec3(0.16, 0.10, 0.05);\n" +
+                    "float luma(vec2 offset)\n" +
+                    "{\n" +
+                    "    return dot(texture2D(tex, uv + offset * texelSize).bgr, lumaWeights);\n" +
+                    "}\n" +
+                    "void main()\n" +
+                    "{\n" +
+                    "    vec3 color = texture2D(tex, uv).bgr;\n" +
+                    "    float l = dot(color, lumaWeights);\n" +
+                    "    float banded = floor(l * bands + 0.5) / bands;\n" +
+                    "    vec3 toon = mix(color * (banded / max(l, 0.001)), color, 0.25);\n" +
+                    "    float tl = luma(vec2(-1.0, -1.0));\n" +
+                    "    float t = luma(vec2(0.0, -1.0));\n" +
+                    "    float tr = luma(vec2(1.0, -1.0));\n" +
+                    "    float ml = luma(vec2(-1.0, 0.0));\n" +
+                    "    float mr = luma(vec2(1.0, 0.0));\n" +
+                    "    float bl = luma(vec2(-1.0, 1.0));\n" +
+                    "    float b = luma(vec2(0.0, 1.0));\n" +
+                    "    float br = luma(vec2(1.0, 1.0));\n" +
+                    "    float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;\n" +
+                    "    float gy = -tl - 2.0 * t - tr + bl + 2.0 * b + br;\n" +
+                    "    float edge = smoothstep(0.25, 0.55, length(vec2(gx, gy)));\n" +
+                    "    gl_FragColor = vec4(mix(clamp(toon, 0.0, 1.0), outlineColor, edge * 0.85), alpha);\n" +
+                    "}"
+        )
+
         val NoFilterShader = ShaderProgramSource(
             TextureFiltering.NEAREST,
             DEFAULT_VERT_SHADER,

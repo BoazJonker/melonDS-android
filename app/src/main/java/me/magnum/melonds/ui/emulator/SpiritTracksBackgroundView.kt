@@ -75,6 +75,18 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     private val skyPaint = Paint()
     private val sunPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val hillPath = Path()
+    private val ridgePath = Path()
+    private val farHillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val nearHillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val groundPaint = Paint()
+    private val vignettePaint = Paint()
+    private val carriagePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val cabPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val boilerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val ridgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = 0x59FFFFE6
+    }
     private val rect = RectF()
 
     private val clouds = listOf(
@@ -147,6 +159,28 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP,
         )
+
+        // Vertical shading for the hills, ground and train. The train only moves horizontally, so its gradients can be created once
+        val trackY = h * 0.86f
+        val wheelY = trackY - 7 * density
+        farHillPaint.shader = verticalGradient(h * 0.60f - 0.045f * h, trackY, 0xFF9CC77A.toInt(), 0xFF7FB062.toInt())
+        nearHillPaint.shader = verticalGradient(h * 0.70f - 0.035f * h, trackY, 0xFF6FAE52.toInt(), 0xFF4F8E3A.toInt())
+        groundPaint.shader = verticalGradient(h * 0.78f, h.toFloat(), 0xFF5E9A44.toInt(), 0xFF467A32.toInt())
+        carriagePaint.shader = verticalGradient(wheelY - 26 * density, wheelY - 3 * density, 0xFFA06C40.toInt(), 0xFF6E4626.toInt())
+        cabPaint.shader = verticalGradient(wheelY - 34 * density, wheelY - 4 * density, 0xFF7E5230.toInt(), 0xFF553418.toInt())
+        boilerPaint.shader = verticalGradient(wheelY - 24 * density, wheelY - 6 * density, 0xFF3F7A52.toInt(), 0xFF21452D.toInt())
+        ridgePaint.strokeWidth = 2 * density
+        // Soft darkening towards the edges
+        vignettePaint.shader = RadialGradient(
+            w / 2f, h / 2f, maxOf(w, h) * 0.75f,
+            intArrayOf(0x00281405, 0x00281405, 0x47281405),
+            floatArrayOf(0f, 0.45f, 1f),
+            Shader.TileMode.CLAMP,
+        )
+    }
+
+    private fun verticalGradient(top: Float, bottom: Float, topColor: Int, bottomColor: Int): Shader {
+        return LinearGradient(0f, top, 0f, bottom, topColor, bottomColor, Shader.TileMode.CLAMP)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -168,50 +202,58 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         canvas.save()
         screenAreas.forEach { clipOutRect(canvas, it.rect) }
 
-        // Sky and sun
+        // Sky, slowly turning sun rays and the sun
         canvas.drawRect(0f, 0f, w, h, skyPaint)
+        drawSunRays(canvas, w * 0.82f, h * 0.14f, maxOf(w, h), time)
         canvas.drawCircle(w * 0.82f, h * 0.14f, 46 * density, sunPaint)
 
         drawClouds(canvas, w, h, time)
 
         // Hills, from far to near, scrolling at different speeds for a parallax effect
         val trackY = h * 0.86f
-        drawHills(canvas, w, h * 0.60f, 0.045f * h, 220 * density, 6 * density * time, 0xFF9CC77A.toInt(), trackY)
-        drawHills(canvas, w, h * 0.70f, 0.035f * h, 150 * density, 14 * density * time, 0xFF6FAE52.toInt(), trackY)
+        drawHills(canvas, w, h * 0.60f, 0.045f * h, 220 * density, 6 * density * time, farHillPaint, trackY)
+        drawHills(canvas, w, h * 0.70f, 0.035f * h, 150 * density, 14 * density * time, nearHillPaint, trackY)
 
         // Ground below the hills
-        fillPaint.color = 0xFF5E9A44.toInt()
-        canvas.drawRect(0f, h * 0.78f, w, h, fillPaint)
+        canvas.drawRect(0f, h * 0.78f, w, h, groundPaint)
 
         drawTrack(canvas, w, h, trackY)
         drawTrain(canvas, w, trackY, time)
 
+        canvas.drawRect(0f, 0f, w, h, vignettePaint)
         canvas.restore()
     }
 
     /**
-     * Draws a dark wood frame with a gold line along the inner edges of each screen.
+     * Draws a carved frame along the inner edges of each screen: a dark outer edge, wood, a gold inlay between two dark lines, and a soft shadow on the inside
+     * so the game looks slightly sunken into the frame.
      */
     private fun drawScreenFrames(canvas: Canvas) {
         val d = density
         screenAreas.forEach { area ->
-            val alpha = ((if (area.isMiniScreen) miniScreenAlpha else 1f) * 255).toInt()
+            val alpha = if (area.isMiniScreen) miniScreenAlpha else 1f
             val corner = if (area.isMiniScreen) 3 * d else 0f
 
-            framePaint.color = 0xFF3B2412.toInt()
-            framePaint.alpha = alpha
-            framePaint.strokeWidth = 3 * d
-            rect.set(area.rect)
-            rect.inset(1.5f * d, 1.5f * d)
-            canvas.drawRoundRect(rect, corner, corner, framePaint)
-
-            framePaint.color = 0xFFE2B54A.toInt()
-            framePaint.alpha = alpha
-            framePaint.strokeWidth = 1.2f * d
-            rect.set(area.rect)
-            rect.inset(3.6f * d, 3.6f * d)
-            canvas.drawRoundRect(rect, corner, corner, framePaint)
+            // (colour, stroke width, distance of the stroke's centre from the edge)
+            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 1f * d, 0.5f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFF5C3A1E.toInt(), 2.2f * d, 2.1f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 0.6f * d, 3.5f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFFE2B54A.toInt(), 1.3f * d, 4.45f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 0.6f * d, 5.4f * d, corner, alpha)
+            // Inner shadow, fading out towards the picture
+            drawFrameLine(canvas, area.rect, 0x59000000, 1.2f * d, 6.3f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0x2E000000, 1.2f * d, 7.5f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0x12000000, 1.2f * d, 8.7f * d, corner, alpha)
         }
+    }
+
+    private fun drawFrameLine(canvas: Canvas, area: RectF, color: Int, width: Float, inset: Float, corner: Float, alpha: Float) {
+        framePaint.color = color
+        framePaint.alpha = (((color ushr 24) and 0xFF) * alpha).toInt()
+        framePaint.strokeWidth = width
+        rect.set(area)
+        rect.inset(inset, inset)
+        canvas.drawRoundRect(rect, corner, corner, framePaint)
     }
 
     @Suppress("DEPRECATION")
@@ -223,25 +265,46 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         }
     }
 
+    private fun drawSunRays(canvas: Canvas, cx: Float, cy: Float, length: Float, time: Float) {
+        fillPaint.color = 0x2EFFF4C4
+        val rayCount = 10
+        for (i in 0 until rayCount) {
+            val angle = (i.toFloat() / rayCount * 360f) + time * 3f
+            rect.set(cx - length, cy - length, cx + length, cy + length)
+            canvas.drawArc(rect, angle, 7f, true, fillPaint)
+        }
+    }
+
     private fun drawClouds(canvas: Canvas, w: Float, h: Float, time: Float) {
-        fillPaint.color = 0xF2FFFFFF.toInt()
         clouds.forEach { cloud ->
             val cloudWidth = 90 * density * cloud.scale
             val span = w + cloudWidth * 2
             val x = ((cloud.startX * span - cloud.speedDp * density * time) % span + span) % span - cloudWidth
             val y = cloud.y * h
             val r = 16 * density * cloud.scale
-            canvas.drawCircle(x, y, r, fillPaint)
-            canvas.drawCircle(x + r * 1.1f, y - r * 0.6f, r * 1.25f, fillPaint)
-            canvas.drawCircle(x + r * 2.3f, y - r * 0.2f, r * 1.05f, fillPaint)
-            canvas.drawCircle(x + r * 3.2f, y + r * 0.1f, r * 0.8f, fillPaint)
-            rect.set(x, y - r * 0.2f, x + r * 3.4f, y + r * 0.85f)
-            canvas.drawRoundRect(rect, r * 0.5f, r * 0.5f, fillPaint)
+            // Bluish shadow underneath, the white cloud, then bright highlights on top
+            fillPaint.color = 0x8C96AAC3.toInt()
+            drawCloudShape(canvas, x, y + r * 0.25f, r, 1f)
+            fillPaint.color = 0xF5FFFFFF.toInt()
+            drawCloudShape(canvas, x, y, r, 1f)
+            fillPaint.color = 0xFFFFFFFF.toInt()
+            canvas.drawCircle(x + r * 0.9f, y - r * 0.85f, r * 0.7f, fillPaint)
+            canvas.drawCircle(x + r * 2.1f, y - r * 0.45f, r * 0.55f, fillPaint)
         }
     }
 
-    private fun drawHills(canvas: Canvas, w: Float, baseY: Float, amplitude: Float, wavelength: Float, offset: Float, color: Int, bottom: Float) {
+    private fun drawCloudShape(canvas: Canvas, x: Float, y: Float, r: Float, scale: Float) {
+        canvas.drawCircle(x, y, r * scale, fillPaint)
+        canvas.drawCircle(x + r * 1.1f, y - r * 0.6f, r * 1.25f * scale, fillPaint)
+        canvas.drawCircle(x + r * 2.3f, y - r * 0.2f, r * 1.05f * scale, fillPaint)
+        canvas.drawCircle(x + r * 3.2f, y + r * 0.1f, r * 0.8f * scale, fillPaint)
+        rect.set(x, y - r * 0.2f, x + r * 3.4f, y + r * 0.85f)
+        canvas.drawRoundRect(rect, r * 0.5f, r * 0.5f, fillPaint)
+    }
+
+    private fun drawHills(canvas: Canvas, w: Float, baseY: Float, amplitude: Float, wavelength: Float, offset: Float, paint: Paint, bottom: Float) {
         hillPath.reset()
+        ridgePath.reset()
         hillPath.moveTo(0f, bottom)
         val step = 8 * density
         var x = 0f
@@ -249,12 +312,14 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             val phase = (x + offset) / wavelength * 2 * PI
             val y = baseY - amplitude * (sin(phase) * 0.7 + sin(phase * 0.37 + 1.3) * 0.3).toFloat()
             hillPath.lineTo(x, y)
+            if (x == 0f) ridgePath.moveTo(x, y + density) else ridgePath.lineTo(x, y + density)
             x += step
         }
         hillPath.lineTo(w, bottom)
         hillPath.close()
-        fillPaint.color = color
-        canvas.drawPath(hillPath, fillPaint)
+        canvas.drawPath(hillPath, paint)
+        // Sunlit ridge along the top of the hills
+        canvas.drawPath(ridgePath, ridgePaint)
     }
 
     private fun drawTrack(canvas: Canvas, w: Float, h: Float, trackY: Float) {
@@ -296,6 +361,11 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         val wheelY = trackY - 7 * d
 
         if (isVisible) {
+            // Shadow of the train on the ground
+            fillPaint.color = 0x40000000
+            rect.set(front - 150 * d, trackY - 1 * d, front + 6 * d, trackY + 7 * d)
+            canvas.drawOval(rect, fillPaint)
+
             // Carriages
             for (i in 0..1) {
                 val right = front - 58 * d - i * 46 * d
@@ -317,18 +387,22 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         puffs.forEach { puff ->
             val age = (time - puff.bornAt) / SMOKE_LIFETIME_SECONDS
             val alpha = ((1f - age) * 200).toInt().coerceIn(0, 255)
-            fillPaint.color = (alpha shl 24) or 0xF4F1EA
             val radius = (5 + age * 14) * d
-            canvas.drawCircle(puff.x - age * 18 * d + puff.drift, puff.y - age * 46 * d, radius, fillPaint)
+            val puffX = puff.x - age * 18 * d + puff.drift
+            val puffY = puff.y - age * 46 * d
+            // Grey shading on the lower side of each puff
+            fillPaint.color = ((alpha * 0.6f).toInt() shl 24) or 0xAAA5A0
+            canvas.drawCircle(puffX + radius * 0.2f, puffY + radius * 0.25f, radius, fillPaint)
+            fillPaint.color = (alpha shl 24) or 0xF4F1EA
+            canvas.drawCircle(puffX, puffY, radius, fillPaint)
         }
     }
 
     private fun drawLocomotive(canvas: Canvas, front: Float, wheelY: Float, time: Float) {
         val d = density
         // Cab
-        fillPaint.color = 0xFF6B4423.toInt()
         rect.set(front - 56 * d, wheelY - 34 * d, front - 34 * d, wheelY - 4 * d)
-        canvas.drawRoundRect(rect, 2 * d, 2 * d, fillPaint)
+        canvas.drawRoundRect(rect, 2 * d, 2 * d, cabPaint)
         fillPaint.color = 0xFF3B2412.toInt()
         rect.set(front - 59 * d, wheelY - 38 * d, front - 31 * d, wheelY - 33 * d)
         canvas.drawRoundRect(rect, 2 * d, 2 * d, fillPaint)
@@ -337,9 +411,12 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         canvas.drawRect(rect, fillPaint)
 
         // Boiler with gold bands
-        fillPaint.color = 0xFF2F5D3E.toInt()
         rect.set(front - 36 * d, wheelY - 24 * d, front - 2 * d, wheelY - 6 * d)
-        canvas.drawRoundRect(rect, 8 * d, 8 * d, fillPaint)
+        canvas.drawRoundRect(rect, 8 * d, 8 * d, boilerPaint)
+        // Shine along the top of the boiler
+        fillPaint.color = 0x47FFFFFF
+        rect.set(front - 33 * d, wheelY - 22 * d, front - 5 * d, wheelY - 18 * d)
+        canvas.drawRoundRect(rect, 2 * d, 2 * d, fillPaint)
         fillPaint.color = 0xFFE2B54A.toInt()
         canvas.drawRect(front - 26 * d, wheelY - 24 * d, front - 23 * d, wheelY - 6 * d, fillPaint)
         canvas.drawRect(front - 13 * d, wheelY - 24 * d, front - 10 * d, wheelY - 6 * d, fillPaint)
@@ -353,6 +430,10 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         // Lamp and cowcatcher
         fillPaint.color = 0xFFFFE48A.toInt()
         canvas.drawCircle(front - 2 * d, wheelY - 19 * d, 2.5f * d, fillPaint)
+        // Glow around the lamp
+        fillPaint.color = 0x2EFFE48A
+        canvas.drawCircle(front - 2 * d, wheelY - 19 * d, 13 * d, fillPaint)
+        canvas.drawCircle(front - 2 * d, wheelY - 19 * d, 8 * d, fillPaint)
         fillPaint.color = 0xFF232128.toInt()
         hillPath.reset()
         hillPath.moveTo(front - 4 * d, wheelY - 6 * d)
@@ -369,9 +450,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
 
     private fun drawCarriage(canvas: Canvas, left: Float, right: Float, wheelY: Float, time: Float) {
         val d = density
-        fillPaint.color = 0xFF8A5A32.toInt()
         rect.set(left, wheelY - 26 * d, right, wheelY - 3 * d)
-        canvas.drawRoundRect(rect, 3 * d, 3 * d, fillPaint)
+        canvas.drawRoundRect(rect, 3 * d, 3 * d, carriagePaint)
         fillPaint.color = 0xFF3B2412.toInt()
         rect.set(left - 2 * d, wheelY - 29 * d, right + 2 * d, wheelY - 25 * d)
         canvas.drawRoundRect(rect, 2 * d, 2 * d, fillPaint)

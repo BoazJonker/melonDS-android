@@ -35,7 +35,7 @@
             app:iconSpaceReserved="false"
             android:entries="@array/video_filtering_options"
             android:entryValues="@array/video_filtering_values"
-            android:defaultValue="quilez"/>
+            android:defaultValue="toon"/>
 
     <SwitchPreference
             android:key="animated_background"

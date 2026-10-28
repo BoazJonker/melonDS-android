@@ -180,14 +180,28 @@ class DefaultLayoutProvider(
 
         // With the one screen + mini screen layout, the controls sit right below the screen, like on a Game Boy, if there's enough room. Otherwise they're
         // anchored to the bottom of the screen
+        // In that placement the stick (or D-pad) and the buttons are larger, and the stick is lowered so that its centre lines up with the large Sword button,
+        // which sits slightly below the middle of the buttons area
+        val stickSize = screenUnitsConverter.dpToPixels(150f).toInt()
+        val buttonsSize = screenUnitsConverter.dpToPixels(170f).toInt()
+        val stickOffset = (buttonsSize * 0.58f - stickSize / 2f).toInt()
         val gameBoyControlsTop = utilityButtonsTop + lrButtonsSize + spacing4dp * 2
-        val startSelectTop = gameBoyControlsTop + largeButtonsSize + spacing4dp * 3
-        val useGameBoyPlacement = isSingleScreenFit && startSelectTop + smallButtonsSize <= height - safeBottom
-        val controlsTop = if (useGameBoyPlacement) gameBoyControlsTop else height - safeBottom - largeButtonsSize
+        val startSelectTop = gameBoyControlsTop + maxOf(buttonsSize, stickOffset + stickSize) + spacing4dp * 3
+        val useGameBoyPlacement = isSingleScreenFit &&
+                startSelectTop + smallButtonsSize <= height - safeBottom &&
+                stickSize + buttonsSize <= safeWidth
         val startSelectY = if (useGameBoyPlacement) startSelectTop else height - safeBottom - smallButtonsSize
 
-        val dpadView = Rect(safeLeft, controlsTop, largeButtonsSize, largeButtonsSize)
-        val buttonsView = Rect(width - safeRight - largeButtonsSize, controlsTop, largeButtonsSize, largeButtonsSize)
+        val dpadView: Rect
+        val buttonsView: Rect
+        if (useGameBoyPlacement) {
+            dpadView = Rect(safeLeft, gameBoyControlsTop + stickOffset, stickSize, stickSize)
+            buttonsView = Rect(width - safeRight - buttonsSize, gameBoyControlsTop, buttonsSize, buttonsSize)
+        } else {
+            val controlsTop = height - safeBottom - largeButtonsSize
+            dpadView = Rect(safeLeft, controlsTop, largeButtonsSize, largeButtonsSize)
+            buttonsView = Rect(width - safeRight - largeButtonsSize, controlsTop, largeButtonsSize, largeButtonsSize)
+        }
 
         return ScreenLayout(
             listOf(

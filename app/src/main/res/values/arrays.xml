@@ -54,6 +54,7 @@
         <item>hq4x</item>
         <item>quilez</item>
         <item>lcd</item>
+        <item>toon</item>
     </string-array>
 
     <string-array name="control_style_values">

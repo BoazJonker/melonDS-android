@@ -12,8 +12,12 @@ import me.magnum.melonds.ui.emulator.input.componentbuilder.ToggleableSingleButt
 /**
  * @param useStickControls Whether to replace the D-pad with an analog stick and the A/B/X/Y buttons with action buttons that control the game through stylus
  * gestures
+ * @param showButtonLabels Whether to show the names of the action buttons
  */
-class RuntimeLayoutComponentViewBuilderFactory(private val useStickControls: Boolean = false) : LayoutComponentViewBuilderFactory {
+class RuntimeLayoutComponentViewBuilderFactory(
+    private val useStickControls: Boolean = false,
+    private val showButtonLabels: Boolean = true,
+) : LayoutComponentViewBuilderFactory {
     private val layoutComponentViewBuilderCache = mutableMapOf<LayoutComponent, LayoutComponentViewBuilder>()
 
     override fun getLayoutComponentViewBuilder(layoutComponent: LayoutComponent): LayoutComponentViewBuilder {
@@ -22,7 +26,7 @@ class RuntimeLayoutComponentViewBuilderFactory(private val useStickControls: Boo
                 LayoutComponent.TOP_SCREEN -> RuntimeScreenLayoutComponentViewBuilder()
                 LayoutComponent.BOTTOM_SCREEN -> RuntimeScreenLayoutComponentViewBuilder()
                 LayoutComponent.DPAD -> if (useStickControls) StickLayoutComponentViewBuilder() else DpadLayoutComponentViewBuilder()
-                LayoutComponent.BUTTONS -> RuntimeButtonsLayoutComponentViewBuilder(useActionButtons = useStickControls)
+                LayoutComponent.BUTTONS -> RuntimeButtonsLayoutComponentViewBuilder(useActionButtons = useStickControls, showLabels = showButtonLabels)
                 LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE,
                 LayoutComponent.BUTTON_MICROPHONE_TOGGLE,
                 LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> ToggleableSingleButtonLayoutComponentViewBuilder(layoutComponent)

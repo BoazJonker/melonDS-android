@@ -12,6 +12,13 @@
             android:entryValues="@array/control_style_values"
             android:defaultValue="stick" />
 
+    <SwitchPreference
+            android:key="button_labels"
+            android:title="@string/button_labels"
+            android:summary="@string/button_labels_summary"
+            app:iconSpaceReserved="false"
+            android:defaultValue="true" />
+
     <Preference
             android:key="input_key_mapping"
             android:title="@string/key_mapping"

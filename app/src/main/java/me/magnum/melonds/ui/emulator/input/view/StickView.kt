@@ -4,16 +4,19 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
+import android.graphics.RectF
 import android.graphics.Shader
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import kotlin.math.min
 
 /**
- * Spirit Tracks styled analog stick: a parchment base framed in dark wood and gold, with a gold knob that follows the player's thumb.
+ * Spirit Tracks styled analog stick: a shaded parchment base framed in dark wood and gold, with a raised, glossy gold knob that follows the player's thumb
+ * and casts a shadow on the base.
  */
 class StickView(context: Context) : View(context) {
 
@@ -28,7 +31,12 @@ class StickView(context: Context) : View(context) {
         color = 0xFF7A4A25.toInt()
     }
     private val knobPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val woodPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val goldPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val facePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val glossPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
+    private val ovalRect = RectF()
 
     // Knob offset, in the range -1..1 of the knob's travel
     private var knobX = 0f
@@ -71,6 +79,21 @@ class StickView(context: Context) : View(context) {
         ringPaint.strokeWidth = 2 * unit
         ringPaint.pathEffect = DashPathEffect(floatArrayOf(4 * unit, 5 * unit), 0f)
         spiralPaint.strokeWidth = 2 * unit
+
+        val cx = w / 2f
+        val cy = h / 2f
+        woodPaint.shader = RadialGradient(
+            cx - 15 * unit, cy - 20 * unit, 80 * unit,
+            intArrayOf(0xFF7A4E28.toInt(), 0xFF3B2412.toInt(), 0xFF1E1008.toInt()), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP,
+        )
+        goldPaint.shader = LinearGradient(
+            0f, cy - 45 * unit, 0f, cy + 45 * unit,
+            intArrayOf(0xFFFBE7A1.toInt(), 0xFFE2B54A.toInt(), 0xFF9C6E1E.toInt()), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP,
+        )
+        facePaint.shader = RadialGradient(
+            cx - 12 * unit, cy - 14 * unit, 55 * unit,
+            intArrayOf(0xFFFFFBEE.toInt(), 0xFFF3E6C4.toInt(), 0xFFCDB27A.toInt()), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP,
+        )
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -78,14 +101,14 @@ class StickView(context: Context) : View(context) {
         val cx = width / 2f
         val cy = height / 2f
 
-        // Base
-        fillPaint.color = 0xFF3B2412.toInt()
-        canvas.drawCircle(cx, cy, 48 * unit, fillPaint)
-        fillPaint.color = 0xFFE2B54A.toInt()
-        canvas.drawCircle(cx, cy, 45.5f * unit, fillPaint)
-        fillPaint.color = 0xFFEADBB4.toInt()
-        canvas.drawCircle(cx, cy, 43.5f * unit, fillPaint)
-        canvas.drawCircle(cx, cy, 30 * unit, ringPaint)
+        // Base, with its shadow on the ground
+        fillPaint.color = 0x4D000000
+        ovalRect.set(cx - 47 * unit, cy - 38 * unit, cx + 47 * unit, cy + 50 * unit)
+        canvas.drawOval(ovalRect, fillPaint)
+        canvas.drawCircle(cx, cy, 47 * unit, woodPaint)
+        canvas.drawCircle(cx, cy, 43 * unit, goldPaint)
+        canvas.drawCircle(cx, cy, 40 * unit, facePaint)
+        canvas.drawCircle(cx, cy, 28 * unit, ringPaint)
 
         // Direction arrows
         fillPaint.color = 0xFF6E4C2C.toInt()
@@ -96,17 +119,24 @@ class StickView(context: Context) : View(context) {
         drawArrow(cx + 38 * unit, cy, -1f, 0f, unit)
         canvas.drawPath(path, fillPaint)
 
-        // Knob
+        // Knob: shadow on the base, its gold side, then the glossy top
         val kx = cx + knobX * travelRadius
         val ky = cy + knobY * travelRadius
+        fillPaint.color = 0x59000000
+        canvas.drawCircle(kx + 1.5f * unit, ky + 6 * unit, 19 * unit, fillPaint)
+        fillPaint.color = 0xFF5A3A10.toInt()
+        canvas.drawCircle(kx, ky + 3.5f * unit, 19 * unit, fillPaint)
         fillPaint.color = 0xFF3B2412.toInt()
         canvas.drawCircle(kx, ky, 19 * unit, fillPaint)
         knobPaint.shader = RadialGradient(
-            kx - 5 * unit, ky - 6 * unit, 24 * unit,
-            0xFFF3D27A.toInt(), 0xFFB8862A.toInt(),
+            kx - 6 * unit, ky - 7 * unit, 26 * unit,
+            intArrayOf(0xFFFFF0B0.toInt(), 0xFFE2B54A.toInt(), 0xFF8A5E14.toInt()), floatArrayOf(0f, 0.5f, 1f),
             Shader.TileMode.CLAMP,
         )
         canvas.drawCircle(kx, ky, 17 * unit, knobPaint)
+        glossPaint.shader = LinearGradient(0f, ky - 14 * unit, 0f, ky - 2 * unit, 0xC0FFFFFF.toInt(), 0x00FFFFFF, Shader.TileMode.CLAMP)
+        ovalRect.set(kx - 10 * unit, ky - 14 * unit, kx + 8 * unit, ky - 3 * unit)
+        canvas.drawOval(ovalRect, glossPaint)
 
         // Spiral emblem on the knob
         path.reset()
