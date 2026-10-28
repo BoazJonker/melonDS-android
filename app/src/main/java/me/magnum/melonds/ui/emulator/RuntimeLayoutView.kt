@@ -3,6 +3,7 @@ package me.magnum.melonds.ui.emulator
 import android.content.Context
 import android.util.AttributeSet
 import androidx.core.view.isGone
+import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import dagger.hilt.android.AndroidEntryPoint
 import me.magnum.melonds.common.vibration.TouchVibrator
@@ -15,10 +16,10 @@ import me.magnum.melonds.ui.emulator.input.ButtonsInputHandler
 import me.magnum.melonds.ui.emulator.input.DpadInputHandler
 import me.magnum.melonds.ui.emulator.input.FrontendInputHandler
 import me.magnum.melonds.ui.emulator.input.IInputListener
+import me.magnum.melonds.ui.emulator.input.MiniScreenTouchHandler
 import me.magnum.melonds.ui.emulator.input.SingleButtonInputHandler
 import me.magnum.melonds.ui.emulator.input.StickInputHandler
 import me.magnum.melonds.ui.emulator.input.SwapScreensButtonHandler
-import me.magnum.melonds.ui.emulator.input.TapInputHandler
 import me.magnum.melonds.ui.emulator.input.TouchscreenInputHandler
 import me.magnum.melonds.ui.emulator.input.VirtualStylus
 import me.magnum.melonds.ui.emulator.input.view.AnimatedFaceButtonsView
@@ -54,6 +55,21 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
      * Called when the player starts or stops holding the small screen window.
      */
     var onMiniScreenPressedChanged: ((isPressed: Boolean) -> Unit)? = null
+
+    /**
+     * Called when the player drags from the small screen window, for example to pull the train's whistle cord underneath it. The drag itself is passed on to
+     * the main screen.
+     */
+    var onMiniScreenPulled: (() -> Unit)? = null
+
+    /**
+     * Whether the small screen window is hidden. While hidden, touches in its area go to the main screen.
+     */
+    var isMiniScreenHidden = false
+        set(value) {
+            field = value
+            updateScreenInputs()
+        }
 
     /**
      * Whether touches on the main screen are sent to the DS touch screen while it shows the top screen. Used during cutscenes, so that tapping the cutscene
@@ -208,10 +224,8 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         val miniScreenView = screenViews.firstOrNull { it.onTop }
         val mainScreenView = screenViews.firstOrNull { !it.onTop }
         if (miniScreenView != null && mainScreenView != null) {
-            // "One screen + mini screen" layout: tapping the small window swaps the screens, and the main screen receives the touch input
-            miniScreenView.view.setOnTouchListener(
-                TapInputHandler(onPressedChanged = { onMiniScreenPressedChanged?.invoke(it) }) { onMiniScreenTapped?.invoke() }
-            )
+            // "One screen + mini screen" layout: tapping the small window swaps the screens, dragging from it hides it and passes the drag on, and the main
+            // screen receives the touch input
             val mainShowsTouchScreen = mainScreenView.component == touchScreenComponent
             val mainScreenHandler = if (mainShowsTouchScreen || forwardTouchesWhenSwapped) {
                 systemInputHandler?.let { TouchscreenInputHandler(it, virtualStylus) }
@@ -219,6 +233,18 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
                 null
             }
             mainScreenView.view.setOnTouchListener(mainScreenHandler)
+            val pullTarget = if (mainShowsTouchScreen) mainScreenHandler else null
+            miniScreenView.view.setOnTouchListener(
+                MiniScreenTouchHandler(
+                    mainScreenView = pullTarget?.let { mainScreenView.view },
+                    mainScreenHandler = pullTarget,
+                    onPressedChanged = { onMiniScreenPressedChanged?.invoke(it) },
+                    onPulled = { onMiniScreenPulled?.invoke() },
+                    onTap = { onMiniScreenTapped?.invoke() },
+                )
+            )
+            // An invisible view doesn't receive touches, so they reach the main screen underneath
+            miniScreenView.view.isInvisible = isMiniScreenHidden
             return
         }
 

@@ -25,6 +25,14 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+    <me.magnum.melonds.ui.emulator.MiniScreenTabView
+            android:id="@+id/viewMiniScreenTab"
+            android:layout_width="@dimen/mini_screen_tab_width"
+            android:layout_height="@dimen/mini_screen_tab_height"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
     <TextView
             android:id="@+id/textFps"
             android:layout_width="wrap_content"

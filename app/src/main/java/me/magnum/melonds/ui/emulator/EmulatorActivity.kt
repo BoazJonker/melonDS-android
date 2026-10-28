@@ -18,6 +18,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,6 +81,7 @@ import me.magnum.melonds.impl.system.AppForegroundStateObserver
 import me.magnum.melonds.parcelables.RomInfoParcelable
 import me.magnum.melonds.parcelables.RomParcelable
 import me.magnum.melonds.ui.cheats.CheatsActivity
+import me.magnum.melonds.ui.common.LayoutComponentView
 import me.magnum.melonds.ui.common.rom.EmulatorLaunchValidatorDelegate
 import me.magnum.melonds.ui.emulator.component.EmulatorOverlayTracker
 import me.magnum.melonds.ui.emulator.input.ConnectedControllerManager
@@ -114,6 +116,7 @@ import me.magnum.melonds.ui.settings.SettingsActivity
 import me.magnum.melonds.ui.theme.MelonTheme
 import java.text.SimpleDateFormat
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 @AndroidEntryPoint
 class EmulatorActivity : AppCompatActivity() {
@@ -125,6 +128,7 @@ class EmulatorActivity : AppCompatActivity() {
         private const val MINI_SCREEN_IDLE_ALPHA = 0.55f
         private const val MINI_SCREEN_VISIBLE_AFTER_TOUCH_MS = 5000L
         private const val MINI_SCREEN_FADE_DURATION_MS = 250L
+        private const val MINI_SCREEN_SLIDE_DURATION_MS = 200L
 
         const val KEY_ROM = "rom"
         const val KEY_PATH = "PATH"
@@ -265,6 +269,10 @@ class EmulatorActivity : AppCompatActivity() {
     private var miniScreenAlphaAnimator: ValueAnimator? = null
     private var isMiniScreenHeld = false
     private var wasMiniScreenRecentlyTouched = false
+    // Whether the small screen window was slid away, and how far along that slide is (0 = in place, 1 = fully hidden)
+    private var isMiniScreenHidden = false
+    private var miniScreenHideProgress = 0f
+    private var miniScreenSlideAnimator: ValueAnimator? = null
     private val miniScreenTouchTimeoutRunnable = Runnable {
         wasMiniScreenRecentlyTouched = false
         updateMiniScreenAlpha()
@@ -361,6 +369,14 @@ class EmulatorActivity : AppCompatActivity() {
         binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls(), showButtonLabels()))
         binding.viewLayoutControls.onMiniScreenTapped = { onManualScreenSwap() }
         binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed -> onMiniScreenPressedChanged(isPressed) }
+        binding.viewLayoutControls.onMiniScreenPulled = { setMiniScreenHidden(true) }
+        binding.viewMiniScreenTab.setOnTouchListener { _, event ->
+            // Any tap or swipe on the tab brings the window back
+            if (event.actionMasked == MotionEvent.ACTION_UP) {
+                setMiniScreenHidden(false)
+            }
+            true
+        }
         binding.viewLayoutControls.apply {
             setFrontendInputHandler(frontendInputHandler)
             setSystemInputHandler(melonTouchHandler)
@@ -867,14 +883,18 @@ class EmulatorActivity : AppCompatActivity() {
         }
         val topView = binding.viewLayoutControls.getLayoutComponentView(topScreen)
         val bottomView = binding.viewLayoutControls.getLayoutComponentView(bottomScreen)
-        binding.viewAnimatedBackground.setScreenRects(listOfNotNull(topView, bottomView).map { it.getRect() to it.onTop })
-        binding.viewAnimatedBackground.miniScreenAlpha = miniScreenAlpha
-        // The small screen window is drawn with the see-through effect
-        val topAlpha = (topView?.baseAlpha ?: 1f) * if (topView?.onTop == true) miniScreenAlpha else 1f
-        val bottomAlpha = (bottomView?.baseAlpha ?: 1f) * if (bottomView?.onTop == true) miniScreenAlpha else 1f
+        val topRect = topView?.let { getSlidScreenRect(it) }
+        val bottomRect = bottomView?.let { getSlidScreenRect(it) }
+        binding.viewAnimatedBackground.setScreenRects(listOfNotNull(topView, bottomView).map { getSlidScreenRect(it) to it.onTop })
+        // The small screen window is drawn with the see-through effect, and fades out as it slides away
+        val windowAlpha = miniScreenAlpha * (1f - miniScreenHideProgress)
+        binding.viewAnimatedBackground.miniScreenAlpha = windowAlpha
+        val topAlpha = (topView?.baseAlpha ?: 1f) * if (topView?.onTop == true) windowAlpha else 1f
+        val bottomAlpha = (bottomView?.baseAlpha ?: 1f) * if (bottomView?.onTop == true) windowAlpha else 1f
+        updateMiniScreenTab(listOfNotNull(topView, bottomView).firstOrNull { it.onTop })
         mainScreenRenderer.updateScreenAreas(
-            topView?.getRect(),
-            bottomView?.getRect(),
+            topRect,
+            bottomRect,
             topAlpha,
             bottomAlpha,
             topView?.onTop ?: false,
@@ -887,6 +907,68 @@ class EmulatorActivity : AppCompatActivity() {
                 listOf(rect)
             }
             window?.systemGestureExclusionRects = touchScreenArea.orEmpty()
+        }
+    }
+
+    /**
+     * Returns the area of a screen, moved towards the nearest side edge as the small screen window slides away.
+     */
+    private fun getSlidScreenRect(view: LayoutComponentView): Rect {
+        val rect = view.getRect()
+        if (!view.onTop || miniScreenHideProgress == 0f) {
+            return rect
+        }
+
+        val layoutWidth = binding.viewLayoutControls.width
+        val distance = if (isMiniScreenOnRightSide(rect)) layoutWidth - rect.x else -rect.right
+        return rect.copy(x = rect.x + (distance * miniScreenHideProgress).roundToInt())
+    }
+
+    private fun isMiniScreenOnRightSide(rect: Rect): Boolean {
+        return rect.x + rect.width / 2 >= binding.viewLayoutControls.width / 2
+    }
+
+    /**
+     * Places the tab that brings the hidden window back at the screen edge the window slid towards, level with where the window was.
+     */
+    private fun updateMiniScreenTab(miniScreenView: LayoutComponentView?) {
+        val tab = binding.viewMiniScreenTab
+        if (miniScreenView == null || !isMiniScreenHidden) {
+            tab.isVisible = false
+            return
+        }
+
+        val rect = miniScreenView.getRect()
+        val tabWidth = resources.getDimensionPixelSize(R.dimen.mini_screen_tab_width)
+        val tabHeight = resources.getDimensionPixelSize(R.dimen.mini_screen_tab_height)
+        val onRight = isMiniScreenOnRightSide(rect)
+        tab.isOnRightEdge = onRight
+        tab.translationX = if (onRight) (binding.viewLayoutControls.width - tabWidth).toFloat() else 0f
+        tab.translationY = (rect.y + (rect.height - tabHeight) / 2).toFloat()
+        tab.alpha = miniScreenHideProgress
+        tab.isVisible = true
+    }
+
+    /**
+     * Slides the small screen window off the screen, for example so the train's whistle cord underneath it can be pulled, or brings it back. While hidden,
+     * touches in its area go to the game, and a tab at the screen edge brings it back.
+     */
+    private fun setMiniScreenHidden(hidden: Boolean) {
+        if (hidden == isMiniScreenHidden) {
+            return
+        }
+
+        isMiniScreenHidden = hidden
+        binding.viewLayoutControls.isMiniScreenHidden = hidden
+        miniScreenSlideAnimator?.cancel()
+        miniScreenSlideAnimator = ValueAnimator.ofFloat(miniScreenHideProgress, if (hidden) 1f else 0f).apply {
+            duration = MINI_SCREEN_SLIDE_DURATION_MS
+            interpolator = DecelerateInterpolator()
+            addUpdateListener {
+                miniScreenHideProgress = it.animatedValue as Float
+                updateRendererScreenAreas()
+            }
+            start()
         }
     }
 
@@ -942,6 +1024,8 @@ class EmulatorActivity : AppCompatActivity() {
     private fun onCutsceneChanged(isCutscene: Boolean) {
         val areScreensSwapped = binding.viewLayoutControls.areScreensSwapped()
         if (isCutscene && !areScreensSwapped) {
+            // The cutscene needs the window: it shows the touch screen while the cutscene fills the main screen
+            setMiniScreenHidden(false)
             isCutsceneSwapped = true
             binding.viewLayoutControls.forwardTouchesWhenSwapped = true
             swapScreen()
@@ -990,6 +1074,7 @@ class EmulatorActivity : AppCompatActivity() {
     private fun onManualScreenSwap() {
         // A manual swap overrides cutscene detection until gameplay resumes
         cutsceneDetector.suppressUntilGameplay()
+        setMiniScreenHidden(false)
         if (isCutsceneSwapped) {
             isCutsceneSwapped = false
             binding.viewLayoutControls.forwardTouchesWhenSwapped = false
