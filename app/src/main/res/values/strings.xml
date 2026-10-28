@@ -228,6 +228,8 @@
     <string name="filter">Filter</string>
     <string name="internal_resolution">Internal resolution</string>
     <string name="screen_fit">Screen fit</string>
+    <string name="launch_last_game_on_startup">Open last game on startup</string>
+    <string name="launch_last_game_on_startup_summary">Opening the app goes straight into the last game you played. Exit the game to get to the game list</string>
     <string name="renderer">Renderer</string>
     <string name="dsi_camera_source">DSi camera source</string>
     <string name="external_screen_layout">External screen layout</string>
@@ -563,6 +565,7 @@
         <item>Fit to screen</item>
         <item>Fit to screen (large touch screen)</item>
         <item>Stretch to fill</item>
+        <item>One screen + mini screen</item>
     </string-array>
 
     <string-array name="dsi_camera_source_options">

@@ -34,6 +34,7 @@ class DefaultLayoutProvider(
         FIT_EQUAL,
         FIT_BOTTOM_FOCUS,
         STRETCH,
+        SINGLE_SCREEN,
     }
 
     private fun getScreenFit(): ScreenFit {
@@ -129,7 +130,20 @@ class DefaultLayoutProvider(
         var screenWidth = safeWidth
         var screenHeight = (safeWidth / consoleAspectRatio).toInt()
 
-        val screenComponents = if (singleScreenComponent == null) {
+        val isSingleScreenFit = singleScreenComponent == null && getScreenFit() == ScreenFit.SINGLE_SCREEN
+
+        val screenComponents = if (isSingleScreenFit) {
+            // The bottom (touch) screen takes the full width. The top screen is shown as a small overlay on its top-right corner
+            val bottomScreenView = Rect(safeLeft, safeTop, screenWidth, screenHeight)
+            val miniScreenWidth = (screenWidth * 0.35f).roundToInt()
+            val miniScreenHeight = (miniScreenWidth / consoleAspectRatio).toInt()
+            val topScreenView = Rect(safeLeft + screenWidth - miniScreenWidth, safeTop, miniScreenWidth, miniScreenHeight)
+
+            arrayOf(
+                PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN, onTop = true),
+                PositionedLayoutComponent(bottomScreenView, LayoutComponent.BOTTOM_SCREEN),
+            )
+        } else if (singleScreenComponent == null) {
             var screenMargin = 0
             if (getScreenFit() == ScreenFit.STRETCH) {
                 // Each screen takes the full width and half of the available height, ignoring the console's aspect ratio
@@ -153,7 +167,7 @@ class DefaultLayoutProvider(
             arrayOf(PositionedLayoutComponent(screenArea, singleScreenComponent))
         }
 
-        val screensBottom = if (singleScreenComponent == null) safeTop + screenHeight * 2 else safeTop + screenHeight
+        val screensBottom = if (singleScreenComponent == null && !isSingleScreenFit) safeTop + screenHeight * 2 else safeTop + screenHeight
         // Check if there's space to put all the buttons below the screens. If not, place L, R, and utility buttons aligned with the top of the bottom screen
         val utilityButtonsTop = if (screensBottom + lrButtonsSize + largeButtonsSize > height) {
             safeTop + screenHeight
@@ -177,6 +191,12 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize - (spacing4dp / 2.0).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT),
                 PositionedLayoutComponent(Rect(width / 2 + (spacing4dp / 2.0).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_MICROPHONE_TOGGLE),
                 PositionedLayoutComponent(Rect(width / 2 + smallButtonsSize + (spacing4dp * 1.5).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE),
+            ) + listOfNotNull(
+                if (isSingleScreenFit) {
+                    PositionedLayoutComponent(Rect(width / 2 + smallButtonsSize * 2 + (spacing4dp * 2.5).toInt(), utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SWAP_SCREENS)
+                } else {
+                    null
+                },
             )
         )
     }
@@ -196,11 +216,13 @@ class DefaultLayoutProvider(
         val smallButtonsSize = screenUnitsConverter.dpToPixels(40f).toInt()
         val spacing4dp = screenUnitsConverter.dpToPixels(4f).toInt()
 
+        val isSingleScreenFit = singleScreenComponent == null && getScreenFit() == ScreenFit.SINGLE_SCREEN
+
         val screenComponents = if (singleScreenComponent == null) {
             val (topScreenView, bottomScreenView) = buildLandscapeScreenRects(safeLeft, safeTop, safeWidth, safeHeight)
 
             arrayOf(
-                PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN),
+                PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN, onTop = isSingleScreenFit),
                 PositionedLayoutComponent(bottomScreenView, LayoutComponent.BOTTOM_SCREEN),
             )
         } else {
@@ -225,6 +247,12 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize - (spacing4dp / 2.0).toInt(), safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT),
                 PositionedLayoutComponent(Rect(width / 2 + (spacing4dp / 2.0).toInt(), safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_MICROPHONE_TOGGLE),
                 PositionedLayoutComponent(Rect(width / 2 + smallButtonsSize + (spacing4dp * 1.5).toInt(), safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE),
+            ) + listOfNotNull(
+                if (isSingleScreenFit) {
+                    PositionedLayoutComponent(Rect(width / 2 + smallButtonsSize * 2 + (spacing4dp * 2.5).toInt(), safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SWAP_SCREENS)
+                } else {
+                    null
+                },
             )
         )
     }
@@ -287,6 +315,15 @@ class DefaultLayoutProvider(
                 // Each screen takes half of the available area, ignoring the console's aspect ratio
                 val screenWidth = safeWidth / 2
                 Rect(safeLeft, safeTop, screenWidth, safeHeight) to Rect(safeLeft + screenWidth, safeTop, safeWidth - screenWidth, safeHeight)
+            }
+            ScreenFit.SINGLE_SCREEN -> {
+                // The bottom (touch) screen is centered and as large as possible. The top screen is shown as a small screen on the top-left corner, using the free space
+                // to the left of the main screen when there's enough of it, or overlapping the main screen otherwise
+                val centeredScreen = centerScreenIn(safeWidth, safeHeight)
+                val bottomScreenView = Rect(safeLeft + centeredScreen.x, safeTop + centeredScreen.y, centeredScreen.width, centeredScreen.height)
+                val miniScreenWidth = centeredScreen.x.coerceIn((centeredScreen.width * 0.3f).roundToInt(), (centeredScreen.width * 0.45f).roundToInt())
+                val miniScreenHeight = (miniScreenWidth / consoleAspectRatio).toInt()
+                Rect(safeLeft, safeTop, miniScreenWidth, miniScreenHeight) to bottomScreenView
             }
         }
     }

@@ -8,5 +8,5 @@
         android:title="@string/check_for_updates"
         android:summary="@string/check_for_updates_summary"
         app:iconSpaceReserved="false"
-        android:defaultValue="true" />
+        android:defaultValue="false" />
 </PreferenceScreen>

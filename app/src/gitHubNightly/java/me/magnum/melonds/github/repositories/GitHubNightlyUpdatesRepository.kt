@@ -64,7 +64,7 @@ class GitHubNightlyUpdatesRepository(private val api: GitHubApi, private val pre
     }
 
     private fun shouldCheckUpdates(): Boolean {
-        val updateCheckEnabled = preferences.getBoolean(PREF_KEY_GITHUB_CHECK_FOR_UPDATES, true)
+        val updateCheckEnabled = preferences.getBoolean(PREF_KEY_GITHUB_CHECK_FOR_UPDATES, false)
         if (!updateCheckEnabled) {
             return false
         }

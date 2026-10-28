@@ -1,6 +1,7 @@
 package me.magnum.melonds.ui.romlist
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
@@ -18,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.edit
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,9 +42,18 @@ import me.magnum.melonds.ui.romlist.ui.ProdUpdateAvailableDialog
 import me.magnum.melonds.ui.romlist.ui.RomListScreen
 import me.magnum.melonds.ui.settings.SettingsActivity
 import me.magnum.melonds.ui.theme.MelonTheme
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class RomListActivity : AppCompatActivity() {
+
+    companion object {
+        private const val KEY_LAUNCH_LAST_GAME_ON_STARTUP = "launch_last_game_on_startup"
+        private const val KEY_LAST_LAUNCHED_ROM_URI = "last_launched_rom_uri"
+    }
+
+    @Inject
+    lateinit var sharedPreferences: SharedPreferences
 
     private val viewModel: RomListViewModel by viewModels()
     private val updatesViewModel: UpdatesViewModel by viewModels()
@@ -52,8 +63,13 @@ class RomListActivity : AppCompatActivity() {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
 
+        if (savedInstanceState == null && intent?.action == Intent.ACTION_MAIN) {
+            launchLastGameIfEnabled()
+        }
+
         val emulatorLauncherValidatorDelegate = EmulatorLaunchValidatorDelegate(this, object : EmulatorLaunchValidatorDelegate.Callback {
             override fun onRomValidated(rom: Rom) {
+                sharedPreferences.edit { putString(KEY_LAST_LAUNCHED_ROM_URI, rom.uri.toString()) }
                 val intent = EmulatorActivity.getRomEmulatorActivityIntent(this@RomListActivity, rom)
                 startActivity(intent)
             }
@@ -202,5 +218,21 @@ class RomListActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Launches the last played game straight away so that the app behaves like a standalone game. This activity stays below the emulator so that exiting the game
+     * (or failing to load it) shows the game list.
+     */
+    private fun launchLastGameIfEnabled() {
+        if (!sharedPreferences.getBoolean(KEY_LAUNCH_LAST_GAME_ON_STARTUP, true)) {
+            return
+        }
+
+        val romUri = sharedPreferences.getString(KEY_LAST_LAUNCHED_ROM_URI, null) ?: return
+        val intent = Intent(this, EmulatorActivity::class.java).apply {
+            putExtra(EmulatorActivity.KEY_URI, romUri)
+        }
+        startActivity(intent)
     }
 }
