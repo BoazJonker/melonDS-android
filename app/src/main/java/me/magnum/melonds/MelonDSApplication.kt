@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.edit
 import androidx.hilt.work.HiltWorkerFactory
+import androidx.preference.PreferenceManager
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -13,6 +15,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import me.magnum.melonds.common.UriFileHandler
 import me.magnum.melonds.common.uridelegates.UriHandler
+import me.magnum.melonds.domain.model.VideoFiltering
 import me.magnum.melonds.domain.repositories.SettingsRepository
 import me.magnum.melonds.migrations.Migrator
 import javax.inject.Inject
@@ -37,7 +40,18 @@ class MelonDSApplication : Application(), Configuration.Provider {
         createNotificationChannels()
         applyTheme()
         performMigrations()
+        forceToonFilter()
         MelonDSAndroidInterface.setup(UriFileHandler(this, uriHandler))
+    }
+
+    /**
+     * The cel-shaded Toon filter is part of this build's look, so it's applied every time the app starts. Other filters can still be picked in the settings,
+     * but only last until the app is restarted.
+     */
+    private fun forceToonFilter() {
+        PreferenceManager.getDefaultSharedPreferences(this).edit {
+            putString("video_filtering", VideoFiltering.TOON.name.lowercase())
+        }
     }
 
     private fun createNotificationChannels() {
