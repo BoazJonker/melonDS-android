@@ -27,4 +27,13 @@
             android:entries="@array/save_state_locations"
             android:entryValues="@array/save_state_location_values"
             android:defaultValue="save_dir" />
+
+    <ListPreference
+            android:key="auto_save_interval"
+            android:title="@string/auto_save"
+            android:summary="%s"
+            app:iconSpaceReserved="false"
+            android:entries="@array/auto_save_interval_options"
+            android:entryValues="@array/auto_save_interval_values"
+            android:defaultValue="15" />
 </PreferenceScreen>

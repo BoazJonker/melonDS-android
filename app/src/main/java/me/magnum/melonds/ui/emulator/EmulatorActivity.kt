@@ -470,6 +470,7 @@ class EmulatorActivity : AppCompatActivity() {
                     val (message, duration) = when (it) {
                         ToastEvent.GbaLoadFailed -> R.string.error_load_gba_rom to Toast.LENGTH_SHORT
                         ToastEvent.QuickSaveSuccessful -> R.string.saved to Toast.LENGTH_SHORT
+                        ToastEvent.AutoSaveSuccessful -> R.string.auto_saved to Toast.LENGTH_SHORT
                         ToastEvent.QuickLoadSuccessful -> R.string.loaded to Toast.LENGTH_SHORT
                         ToastEvent.RewindNotEnabled -> R.string.rewind_not_enabled to Toast.LENGTH_SHORT
                         ToastEvent.RewindNotAvailableWhileRAHardcoreModeEnabled -> R.string.rewind_unavailable_ra_hardcore_enabled to Toast.LENGTH_LONG

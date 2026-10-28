@@ -420,6 +420,10 @@ class SharedPreferencesSettingsRepository(
         return SaveStateLocation.valueOf(locationPreference.uppercase())
     }
 
+    override fun getAutoSaveIntervalMinutes(): Int {
+        return preferences.getString("auto_save_interval", "15")?.toIntOrNull() ?: 15
+    }
+
     override fun getSaveStateDirectory(rom: Rom): Uri? {
         val saveStateLocation = getSaveStateLocation(rom)
 

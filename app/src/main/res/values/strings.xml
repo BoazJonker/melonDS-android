@@ -158,6 +158,9 @@
     <string name="save_slot">Save slot</string>
     <string name="empty_slot">%1$s. &lt;Empty&gt;</string>
     <string name="quick_slot">Quick Slot</string>
+    <string name="auto_save_slot">Autosave</string>
+    <string name="auto_save">Autosave</string>
+    <string name="auto_saved">Autosaved</string>
     <string name="saved">Saved</string>
     <string name="loaded">Loaded</string>
     <string name="title_activity_settings">Settings</string>
@@ -558,6 +561,15 @@
         <item>HQ4X</item>
         <item>Quilez</item>
         <item>LCD</item>
+    </string-array>
+
+    <string-array name="auto_save_interval_options">
+        <item>Off</item>
+        <item>Every 5 minutes</item>
+        <item>Every 10 minutes</item>
+        <item>Every 15 minutes</item>
+        <item>Every 30 minutes</item>
+        <item>Every hour</item>
     </string-array>
 
     <string-array name="video_screen_fit_options">

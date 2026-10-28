@@ -22,10 +22,10 @@ class FileSystemSaveStatesRepository(
         val saveStateDirectoryDocument = getSaveStateDirectoryDocument(rom) ?: return emptyList()
         val romFileName = getRomFileNameWithoutExtension(rom) ?: return emptyList()
 
-        val saveStateSlots = Array(9) {
+        val saveStateSlots = Array(SaveStateSlot.AUTO_SAVE_SLOT + 1) {
             SaveStateSlot(it, false, null, null)
         }
-        val fileNameRegex = "${Regex.escape(romFileName)}\\.ml[0-8]".toRegex()
+        val fileNameRegex = "${Regex.escape(romFileName)}\\.ml[0-9]".toRegex()
         saveStateDirectoryDocument.listFiles().forEach {
             val fileName = it.name
             if (fileName?.matches(fileNameRegex) == true) {

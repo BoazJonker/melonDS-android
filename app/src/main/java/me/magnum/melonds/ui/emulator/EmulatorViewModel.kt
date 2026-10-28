@@ -117,6 +117,8 @@ class EmulatorViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val sessionCoroutineScope = EmulatorSessionCoroutineScope()
+    @Volatile
+    private var isEmulatorPaused = false
     private var raSessionJob: Job? = null
 
     private val _emulatorState = MutableStateFlow<EmulatorState>(EmulatorState.Uninitialized)
@@ -267,6 +269,7 @@ class EmulatorViewModel @Inject constructor(
                 _emulatorState.value = EmulatorState.RunningRom(rom)
                 startTrackingFps()
                 startTrackingPlayTime(rom)
+                startAutoSaving(rom)
             }
         }
     }
@@ -350,7 +353,7 @@ class EmulatorViewModel @Inject constructor(
 
     fun pauseEmulator(showPauseMenu: Boolean) {
         sessionCoroutineScope.launch {
-            emulatorManager.pauseEmulator()
+            pauseEmulation()
             if (showPauseMenu) {
                 val pauseOptions = when (_emulatorState.value) {
                     is EmulatorState.RunningRom -> {
@@ -373,7 +376,7 @@ class EmulatorViewModel @Inject constructor(
 
     fun resumeEmulator() {
         sessionCoroutineScope.launch {
-            emulatorManager.resumeEmulator()
+            resumeEmulation()
         }
     }
 
@@ -416,6 +419,49 @@ class EmulatorViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 romsRepository.addRomPlayTime(rom, (now - lastTime).milliseconds)
                 lastTime = now
+            }
+        }
+    }
+
+    private suspend fun pauseEmulation() {
+        isEmulatorPaused = true
+        emulatorManager.pauseEmulator()
+    }
+
+    private suspend fun resumeEmulation() {
+        isEmulatorPaused = false
+        emulatorManager.resumeEmulator()
+    }
+
+    /**
+     * Periodically saves the game state to the autosave slot while the game is running. Saving is skipped while the emulator is paused.
+     */
+    private fun startAutoSaving(rom: Rom) {
+        sessionCoroutineScope.launch {
+            while (isActive) {
+                val intervalMinutes = settingsRepository.getAutoSaveIntervalMinutes()
+                if (intervalMinutes <= 0) {
+                    // Autosave is disabled. Check again later in case the setting changes
+                    delay(1.minutes)
+                    continue
+                }
+
+                delay(intervalMinutes.minutes)
+                if (isEmulatorPaused || _emulatorState.value !is EmulatorState.RunningRom) {
+                    continue
+                }
+
+                emulatorManager.pauseEmulator()
+                val autoSaveSlot = SaveStateSlot(SaveStateSlot.AUTO_SAVE_SLOT, false, null, null)
+                val saved = runCatching { saveRomState(rom, autoSaveSlot) }.getOrDefault(false)
+                // Don't resume if the user paused the game while saving
+                if (!isEmulatorPaused) {
+                    emulatorManager.resumeEmulator()
+                }
+
+                if (saved) {
+                    _toastEvent.emit(ToastEvent.AutoSaveSuccessful)
+                }
             }
         }
     }
@@ -482,7 +528,7 @@ class EmulatorViewModel @Inject constructor(
         }
 
         sessionCoroutineScope.launch {
-            emulatorManager.pauseEmulator()
+            pauseEmulation()
             val rewindWindow = emulatorManager.getRewindWindow()
             _uiEvent.emit(EmulatorUiEvent.ShowRewindWindow(rewindWindow, settingsRepository.getRewindWindowPosition()))
         }
@@ -500,7 +546,7 @@ class EmulatorViewModel @Inject constructor(
                 if (!saveRomState(it.rom, slot)) {
                     _toastEvent.emit(ToastEvent.StateSaveFailed)
                 }
-                emulatorManager.resumeEmulator()
+                resumeEmulation()
             }
         }
     }
@@ -514,7 +560,7 @@ class EmulatorViewModel @Inject constructor(
                     if (!loadRomState(it.rom, slot)) {
                         _toastEvent.emit(ToastEvent.StateLoadFailed)
                     }
-                    emulatorManager.resumeEmulator()
+                    resumeEmulation()
                 }
             }
         }
@@ -525,12 +571,12 @@ class EmulatorViewModel @Inject constructor(
         when (currentState) {
             is EmulatorState.RunningRom -> {
                 sessionCoroutineScope.launch {
-                    emulatorManager.pauseEmulator()
+                    pauseEmulation()
                     val quickSlot = saveStatesRepository.getRomQuickSaveStateSlot(currentState.rom)
                     if (saveRomState(currentState.rom, quickSlot)) {
                         _toastEvent.emit(ToastEvent.QuickSaveSuccessful)
                     }
-                    emulatorManager.resumeEmulator()
+                    resumeEmulation()
                 }
             }
             is EmulatorState.RunningFirmware -> {
@@ -548,12 +594,12 @@ class EmulatorViewModel @Inject constructor(
             is EmulatorState.RunningRom -> {
                 if (emulatorSession.areSaveStateLoadsAllowed()) {
                     sessionCoroutineScope.launch {
-                        emulatorManager.pauseEmulator()
+                        pauseEmulation()
                         val quickSlot = saveStatesRepository.getRomQuickSaveStateSlot(currentState.rom)
                         if (loadRomState(currentState.rom, quickSlot)) {
                             _toastEvent.emit(ToastEvent.QuickLoadSuccessful)
                         }
-                        emulatorManager.resumeEmulator()
+                        resumeEmulation()
                     }
                 } else {
                     _toastEvent.tryEmit(ToastEvent.CannotUseSaveStatesWhenRAHardcoreIsEnabled)
