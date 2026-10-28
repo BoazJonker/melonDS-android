@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Only build the newest push: an older build finishing later would otherwise replace the APK on the release page with an older version
+concurrency:
+  group: build-hd-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     # Pinned: this image ships with the Android SDK preinstalled
