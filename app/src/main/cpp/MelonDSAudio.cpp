@@ -3,6 +3,7 @@
 #include "mic_blow.h"
 #include "OboeCallback.h"
 #include <oboe/Oboe.h>
+#include <atomic>
 
 #define MIC_BUFFER_SIZE 2048
 
@@ -21,6 +22,8 @@ int actualMicSource = 0;
 bool isMicInputEnabled = true;
 bool isMicOn = false;
 int micBufferReadPos = 0;
+// Set while the player holds the Blow button
+std::atomic_bool isMicBlowing = false;
 
 namespace MelonDSAndroid
 {
@@ -155,6 +158,11 @@ namespace MelonDSAndroid
             micInputStream->requestStop();
     }
 
+    void setMicBlowing(bool blowing)
+    {
+        isMicBlowing = blowing;
+    }
+
     void enableMic()
     {
         isMicOn = true;
@@ -171,8 +179,14 @@ namespace MelonDSAndroid
     int readMic(s16* data, int maxlength)
     {
         int micSource = actualMicSource;
-        if (!isMicInputEnabled)
+        if (isMicBlowing)
         {
+            // The Blow button overrides the microphone source
+            micSource = 1;
+        }
+        else if (!isMicInputEnabled || micSource == 1)
+        {
+            // With the "blow" source, the game only hears blowing while the Blow button is held
             micSource = 0;
         }
 

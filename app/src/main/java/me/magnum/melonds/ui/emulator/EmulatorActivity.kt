@@ -116,6 +116,7 @@ import me.magnum.melonds.ui.settings.SettingsActivity
 import me.magnum.melonds.ui.theme.MelonTheme
 import java.text.SimpleDateFormat
 import javax.inject.Inject
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @AndroidEntryPoint
@@ -370,6 +371,7 @@ class EmulatorActivity : AppCompatActivity() {
         binding.viewLayoutControls.onMiniScreenTapped = { onManualScreenSwap() }
         binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed -> onMiniScreenPressedChanged(isPressed) }
         binding.viewLayoutControls.onMiniScreenPulled = { setMiniScreenHidden(true) }
+        binding.viewLayoutControls.onBlowChanged = { isBlowing -> MelonEmulator.setMicBlowing(isBlowing) }
         binding.viewMiniScreenTab.setOnTouchListener { _, event ->
             // Any tap or swipe on the tab brings the window back
             if (event.actionMasked == MotionEvent.ACTION_UP) {
@@ -771,6 +773,7 @@ class EmulatorActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        selectSmoothDisplayMode()
         choreographerFrameRenderer.startRendering()
         emulatorMotionManager.resume()
         updateAnimatedBackground()
@@ -969,6 +972,29 @@ class EmulatorActivity : AppCompatActivity() {
                 updateRendererScreenAreas()
             }
             start()
+        }
+    }
+
+    /**
+     * Locks the screen to 60 Hz (or the lowest multiple of it the screen supports) at the current resolution. The game runs at 60 FPS, so every frame is then
+     * shown for exactly the same time, which keeps movement smooth. Phones that switch between rates on their own (for example to 90 Hz) would otherwise show
+     * some frames longer than others. A higher multiple like 120 Hz would look the same, but makes the phone redraw the game twice as often and run warmer.
+     */
+    private fun selectSmoothDisplayMode() {
+        @Suppress("DEPRECATION")
+        val display = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager.defaultDisplay) ?: return
+        val currentMode = display.mode
+        val bestMode = display.supportedModes
+            .filter { it.physicalWidth == currentMode.physicalWidth && it.physicalHeight == currentMode.physicalHeight }
+            .filter { mode ->
+                val multiple = (mode.refreshRate / 60f).roundToInt()
+                multiple >= 1 && abs(mode.refreshRate - multiple * 60f) < 1f
+            }
+            .minByOrNull { it.refreshRate }
+            ?: return
+
+        if (window.attributes.preferredDisplayModeId != bestMode.modeId) {
+            window.attributes = window.attributes.apply { preferredDisplayModeId = bestMode.modeId }
         }
     }
 
@@ -1272,6 +1298,8 @@ class EmulatorActivity : AppCompatActivity() {
         emulatorMotionManager.pause()
         binding.viewAnimatedBackground.stopAnimation()
         handler.removeCallbacks(miniScreenTouchTimeoutRunnable)
+        // Stop blowing if the app is left while the Blow button is held
+        MelonEmulator.setMicBlowing(false)
         viewModel.pauseEmulator(false)
         viewModel.autoSaveOnLeave()
     }

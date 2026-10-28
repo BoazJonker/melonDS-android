@@ -549,6 +549,12 @@ Java_me_magnum_melonds_MelonEmulator_setMicrophoneEnabled(JNIEnv* env, jobject t
 }
 
 JNIEXPORT void JNICALL
+Java_me_magnum_melonds_MelonEmulator_setMicBlowing(JNIEnv* env, jobject thiz, jboolean blowing)
+{
+    MelonDSAndroid::setMicBlowing(blowing);
+}
+
+JNIEXPORT void JNICALL
 Java_me_magnum_melonds_MelonEmulator_updateEmulatorConfiguration(JNIEnv* env, jobject thiz, jobject emulatorConfiguration)
 {
     MelonDSAndroid::EmulatorConfiguration newConfiguration = MelonDSAndroidConfiguration::buildEmulatorConfiguration(env, emulatorConfiguration);

@@ -9,6 +9,10 @@ namespace MelonDSAndroid
 {
     extern void userEnableMic();
     extern void userDisableMic();
+    /**
+     * While enabled, the game hears someone blowing into the microphone, whatever the microphone source is.
+     */
+    extern void setMicBlowing(bool blowing);
     extern void enableMic();
     extern void disableMic();
     extern int readMic(melonDS::s16* data, int maxlength);

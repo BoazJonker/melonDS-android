@@ -135,6 +135,11 @@ object MelonEmulator {
 
     external fun setMicrophoneEnabled(enabled: Boolean)
 
+    /**
+     * While enabled, the game hears someone blowing into the microphone. Used by the Blow button.
+     */
+    external fun setMicBlowing(blowing: Boolean)
+
     external fun updateEmulatorConfiguration(emulatorConfiguration: EmulatorConfiguration)
 
     external fun updateMotionData(ax: Float, ay: Float, az: Float, rx: Float, ry: Float, rz: Float)

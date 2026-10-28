@@ -15,6 +15,7 @@ import me.magnum.melonds.ui.emulator.input.ActionButtonsInputHandler
 import me.magnum.melonds.ui.emulator.input.ButtonsInputHandler
 import me.magnum.melonds.ui.emulator.input.DpadInputHandler
 import me.magnum.melonds.ui.emulator.input.FrontendInputHandler
+import me.magnum.melonds.ui.emulator.input.HoldButtonHandler
 import me.magnum.melonds.ui.emulator.input.IInputListener
 import me.magnum.melonds.ui.emulator.input.MiniScreenTouchHandler
 import me.magnum.melonds.ui.emulator.input.SingleButtonInputHandler
@@ -55,6 +56,11 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
      * Called when the player starts or stops holding the small screen window.
      */
     var onMiniScreenPressedChanged: ((isPressed: Boolean) -> Unit)? = null
+
+    /**
+     * Called when the player starts or stops holding the Blow button.
+     */
+    var onBlowChanged: ((isBlowing: Boolean) -> Unit)? = null
 
     /**
      * Called when the player drags from the small screen window, for example to pull the train's whistle cord underneath it. The drag itself is passed on to
@@ -168,7 +174,14 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             getLayoutComponentView(LayoutComponent.BUTTON_RESET)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.RESET, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_PAUSE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.PAUSE, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.FAST_FORWARD, enableHapticFeedback, touchVibrator))
-            getLayoutComponentView(LayoutComponent.BUTTON_MICROPHONE_TOGGLE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.MICROPHONE, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_MICROPHONE_TOGGLE)?.view?.let { micView ->
+                val handler = if (micView is AnimatedFaceButtonsView) {
+                    HoldButtonHandler(Input.MICROPHONE, enableHapticFeedback) { onBlowChanged?.invoke(it) }
+                } else {
+                    SingleButtonInputHandler(it, Input.MICROPHONE, enableHapticFeedback, touchVibrator)
+                }
+                micView.setOnTouchListener(handler)
+            }
             getLayoutComponentView(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.TOGGLE_SOFT_INPUT, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_SWAP_SCREENS)?.view?.let { swapView ->
                 val handler = if (swapView is AnimatedFaceButtonsView) {

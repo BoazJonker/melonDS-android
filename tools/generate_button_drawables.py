@@ -150,6 +150,14 @@ SWAP_ICON = [
     ('M61,57l-6,4l5,4z', INK),
 ]
 
+BLOW_ICON = [
+    # Gusts of wind
+    ('M24,38h26q10,0 10,-8q0,-7 -7,-7q-6,0 -6,6', None, INK, 4),
+    ('M20,50h44q11,0 11,9q0,8 -8,8q-7,0 -7,-6', None, INK, 4),
+    ('M28,62h14', None, INK, 4),
+    ('M64,40h10', None, INK, 4),
+]
+
 # --- Plank buttons (L/R/Start/Select): socket at y 28..70, cap at y 28..61. Pressing moves the cap down by PLANK_PRESS_DEPTH ---
 PLANK_TOP = 28
 
@@ -220,6 +228,7 @@ DRAWABLES = {
     'st_action_roll': disk_cap(ROLL_ICON),
     'st_action_item': disk_cap(ITEM_ICON),
     'st_swap_screens': disk_cap(SWAP_ICON),
+    'st_blow': disk_cap(BLOW_ICON),
     # Full round button (socket + cap), used as the backing of the small utility buttons
     'st_button_round': disk_base() + disk_cap([]),
 }

@@ -1,12 +1,14 @@
 package me.magnum.melonds.ui.emulator
 
+import me.magnum.melonds.R
+import me.magnum.melonds.domain.model.Input
 import me.magnum.melonds.domain.model.layout.LayoutComponent
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilder
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilderFactory
 import me.magnum.melonds.ui.common.componentbuilders.*
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeButtonsLayoutComponentViewBuilder
+import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeRoundButtonLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeScreenLayoutComponentViewBuilder
-import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeSwapScreensLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.StickLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.ToggleableSingleButtonLayoutComponentViewBuilder
 
@@ -29,9 +31,10 @@ class RuntimeLayoutComponentViewBuilderFactory(
                 LayoutComponent.DPAD -> if (useStickControls) StickLayoutComponentViewBuilder() else DpadLayoutComponentViewBuilder()
                 LayoutComponent.BUTTONS -> RuntimeButtonsLayoutComponentViewBuilder(useActionButtons = useStickControls, showLabels = showButtonLabels)
                 LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE,
-                LayoutComponent.BUTTON_MICROPHONE_TOGGLE,
                 LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> ToggleableSingleButtonLayoutComponentViewBuilder(layoutComponent)
-                LayoutComponent.BUTTON_SWAP_SCREENS -> RuntimeSwapScreensLayoutComponentViewBuilder()
+                // The microphone button is a Blow button: the game hears blowing while it's held, for the Spirit Flute and other blowing puzzles
+                LayoutComponent.BUTTON_MICROPHONE_TOGGLE -> RuntimeRoundButtonLayoutComponentViewBuilder(Input.MICROPHONE, R.drawable.st_blow)
+                LayoutComponent.BUTTON_SWAP_SCREENS -> RuntimeRoundButtonLayoutComponentViewBuilder(Input.SWAP_SCREENS, R.drawable.st_swap_screens)
                 else -> SingleButtonLayoutComponentViewBuilder(layoutComponent)
             }
 
