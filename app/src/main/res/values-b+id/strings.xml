@@ -532,6 +532,7 @@
     </string-array>
 
     <string-array name="video_internal_resolution_options">
+        <item>Auto</item>
         <item>1x asli (256x192)</item>
         <item>2x asli (512x384)</item>
         <item>3x asli (768x576)</item>

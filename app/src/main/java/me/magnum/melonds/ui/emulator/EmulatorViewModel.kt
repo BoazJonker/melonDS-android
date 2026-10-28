@@ -1,6 +1,7 @@
 package me.magnum.melonds.ui.emulator
 
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.magnum.melonds.MelonEmulator
 import me.magnum.melonds.common.romprocessors.RomFileProcessorFactory
 import me.magnum.melonds.common.runtime.ScreenshotFrameBufferProvider
@@ -115,6 +118,17 @@ class EmulatorViewModel @Inject constructor(
     private val retroAchievementsSubmissionHandler: RetroAchievementsSubmissionHandler,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    private companion object {
+        const val AUTO_RESOLUTION_SAMPLE_INTERVAL = 1000L
+        const val AUTO_RESOLUTION_SETTLE_TIME_MS = 8000L
+        const val AUTO_RESOLUTION_AVERAGE_SAMPLES = 5
+        const val AUTO_RESOLUTION_MIN_FPS = 56.0
+        const val AUTO_RESOLUTION_STABLE_FPS = 59f
+        const val AUTO_RESOLUTION_STEP_UP_DELAY_MS = 90_000L
+        const val AUTO_RESOLUTION_TRIAL_TIME_MS = 20_000L
+        const val MIN_AUTO_RESOLUTION_SCALE = 1
+    }
 
     private val sessionCoroutineScope = EmulatorSessionCoroutineScope()
     @Volatile
@@ -270,6 +284,7 @@ class EmulatorViewModel @Inject constructor(
                 startTrackingFps()
                 startTrackingPlayTime(rom)
                 startAutoSaving(rom)
+                startAutoResolution(rom)
                 offerToContinueFromAutoSave(rom)
             }
         }
@@ -465,6 +480,79 @@ class EmulatorViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * With the automatic internal resolution, keeps the highest resolution that still runs at a steady 60 FPS: the resolution goes down one step when the
+     * frame rate stays below 60, and after a long stable period, one step up is tried. If that step can't keep 60 FPS, the resolution goes back down and that
+     * step is remembered as the device's limit.
+     */
+    private fun startAutoResolution(rom: Rom) {
+        if (!settingsRepository.isAutoInternalResolutionEnabled()) {
+            return
+        }
+
+        sessionCoroutineScope.launch {
+            val recentFps = ArrayDeque<Float>()
+            var lastChangeTime = SystemClock.uptimeMillis()
+            var stableSince = lastChangeTime
+            var stepUpTrialTime = 0L
+
+            while (isActive) {
+                delay(AUTO_RESOLUTION_SAMPLE_INTERVAL)
+                val now = SystemClock.uptimeMillis()
+                // Ignore paused time and the time right after loading or changing the resolution
+                if (isEmulatorPaused || _emulatorState.value !is EmulatorState.RunningRom || now - lastChangeTime < AUTO_RESOLUTION_SETTLE_TIME_MS) {
+                    recentFps.clear()
+                    stableSince = now
+                    continue
+                }
+
+                val fps = emulatorManager.getFps()
+                recentFps.addLast(fps)
+                if (recentFps.size > AUTO_RESOLUTION_AVERAGE_SAMPLES) {
+                    recentFps.removeFirst()
+                }
+
+                val scale = settingsRepository.getAutoInternalResolutionScale()
+                val isSlow = recentFps.size >= AUTO_RESOLUTION_AVERAGE_SAMPLES && recentFps.average() < AUTO_RESOLUTION_MIN_FPS
+                if (isSlow && scale > MIN_AUTO_RESOLUTION_SCALE) {
+                    if (stepUpTrialTime != 0L) {
+                        // The last step up couldn't keep up, so don't try it again
+                        settingsRepository.setAutoInternalResolutionCeiling(scale - 1)
+                        stepUpTrialTime = 0L
+                    }
+                    applyAutoResolutionScale(rom, scale - 1)
+                    lastChangeTime = now
+                    recentFps.clear()
+                    stableSince = now
+                } else if (fps >= AUTO_RESOLUTION_STABLE_FPS) {
+                    if (stepUpTrialTime != 0L && now - stepUpTrialTime > AUTO_RESOLUTION_TRIAL_TIME_MS) {
+                        // The step up held a steady frame rate
+                        stepUpTrialTime = 0L
+                    }
+                    val ceiling = settingsRepository.getAutoInternalResolutionCeiling()
+                    if (now - stableSince > AUTO_RESOLUTION_STEP_UP_DELAY_MS && scale < ceiling) {
+                        applyAutoResolutionScale(rom, scale + 1)
+                        stepUpTrialTime = now
+                        lastChangeTime = now
+                        recentFps.clear()
+                        stableSince = now
+                    }
+                } else {
+                    stableSince = now
+                }
+            }
+        }
+    }
+
+    private suspend fun applyAutoResolutionScale(rom: Rom, scale: Int) {
+        settingsRepository.setAutoInternalResolutionScale(scale)
+        // Wait for the renderer configuration to pick up the new scale before applying it to the running game
+        withTimeoutOrNull(2000) {
+            settingsRepository.observeRenderConfiguration().first { it.resolutionScaling == scale }
+        }
+        emulatorManager.updateRomEmulatorConfiguration(rom)
     }
 
     /**

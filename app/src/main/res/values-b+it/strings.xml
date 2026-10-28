@@ -433,6 +433,7 @@
     </string-array>
 
     <string-array name="video_internal_resolution_options">
+        <item>Auto</item>
         <item>Nativa x1 (256x192)</item>
         <item>Nativa x2 (512x384)</item>
         <item>Nativa x3 (768x576)</item>

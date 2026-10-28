@@ -36,6 +36,14 @@ interface SettingsRepository {
 
     fun getVideoRenderer(): Flow<VideoRenderer>
     fun getVideoInternalResolutionScaling(): Flow<Int>
+    fun isAutoInternalResolutionEnabled(): Boolean
+    fun getAutoInternalResolutionScale(): Int
+    fun setAutoInternalResolutionScale(scale: Int)
+    /**
+     * Highest automatic resolution that has kept a steady frame rate on this device.
+     */
+    fun getAutoInternalResolutionCeiling(): Int
+    fun setAutoInternalResolutionCeiling(scale: Int)
     fun getVideoFiltering(): Flow<VideoFiltering>
     fun isThreadedRenderingEnabled(): Flow<Boolean>
     fun getRenderStrategy(): Flow<RenderStrategy>

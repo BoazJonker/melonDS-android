@@ -561,6 +561,7 @@
     </string-array>
 
     <string-array name="video_internal_resolution_options">
+        <item>Auto (best for your phone)</item>
         <item>1x native (256x192)</item>
         <item>2x native (512x384)</item>
         <item>3x native (768x576)</item>

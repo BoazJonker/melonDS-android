@@ -19,7 +19,7 @@
             app:iconSpaceReserved="false"
             android:entries="@array/video_internal_resolution_options"
             android:entryValues="@array/video_internal_resolution_values"
-            android:defaultValue="4"/>
+            android:defaultValue="auto"/>
 
     <SwitchPreference
             android:key="enable_threaded_rendering"

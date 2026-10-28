@@ -70,6 +70,12 @@ class SharedPreferencesSettingsRepository(
 ) : SettingsRepository, OnSharedPreferenceChangeListener {
 
     companion object {
+        private const val AUTO_INTERNAL_RESOLUTION = "auto"
+        private const val KEY_AUTO_INTERNAL_RESOLUTION_SCALE = "video_internal_resolution_auto_scale"
+        private const val KEY_AUTO_INTERNAL_RESOLUTION_CEILING = "video_internal_resolution_auto_ceiling"
+        private const val DEFAULT_AUTO_INTERNAL_RESOLUTION_SCALE = 4
+        private const val MAX_AUTO_INTERNAL_RESOLUTION_SCALE = 5
+
         private const val TAG = "SPSettingsRepository"
         private const val CONTROLLER_CONFIG_FILE = "controller_config.json"
     }
@@ -295,8 +301,12 @@ class SharedPreferencesSettingsRepository(
 
     override fun getVideoInternalResolutionScaling(): Flow<Int> {
         return getOrCreatePreferenceSharedFlow("video_internal_resolution") {
-            val internalResolutionPreference = preferences.getString("video_internal_resolution", "4")!!
-            internalResolutionPreference.toIntOrNull() ?: 1
+            val internalResolutionPreference = preferences.getString("video_internal_resolution", AUTO_INTERNAL_RESOLUTION)!!
+            if (internalResolutionPreference == AUTO_INTERNAL_RESOLUTION) {
+                getAutoInternalResolutionScale()
+            } else {
+                internalResolutionPreference.toIntOrNull() ?: 1
+            }
         }
     }
 
@@ -614,6 +624,30 @@ class SharedPreferencesSettingsRepository(
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         preferenceSharedFlows[key]?.tryEmit(Unit)
+        if (key == KEY_AUTO_INTERNAL_RESOLUTION_SCALE) {
+            // The automatic resolution is part of the internal resolution setting
+            preferenceSharedFlows["video_internal_resolution"]?.tryEmit(Unit)
+        }
+    }
+
+    override fun isAutoInternalResolutionEnabled(): Boolean {
+        return preferences.getString("video_internal_resolution", AUTO_INTERNAL_RESOLUTION) == AUTO_INTERNAL_RESOLUTION
+    }
+
+    override fun getAutoInternalResolutionScale(): Int {
+        return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_SCALE, DEFAULT_AUTO_INTERNAL_RESOLUTION_SCALE)
+    }
+
+    override fun setAutoInternalResolutionScale(scale: Int) {
+        preferences.edit { putInt(KEY_AUTO_INTERNAL_RESOLUTION_SCALE, scale) }
+    }
+
+    override fun getAutoInternalResolutionCeiling(): Int {
+        return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_CEILING, MAX_AUTO_INTERNAL_RESOLUTION_SCALE)
+    }
+
+    override fun setAutoInternalResolutionCeiling(scale: Int) {
+        preferences.edit { putInt(KEY_AUTO_INTERNAL_RESOLUTION_CEILING, scale) }
     }
 
     override fun observeRenderConfiguration(): Flow<RendererConfiguration> {
