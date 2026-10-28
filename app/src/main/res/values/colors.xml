@@ -32,7 +32,7 @@
     <color name="melonMain">#5C913B</color>
     <color name="melonDark">#49732F</color>
 
-    <color name="splashBackground">@color/stWoodDark</color>
+    <color name="splashBackground">@color/stParchment</color>
     <color name="splashToolbar">@color/colorPrimaryDark</color>
 
     <color name="statusOk">#4A4</color>
