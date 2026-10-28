@@ -143,4 +143,12 @@
         <item>top</item>
         <item>bottom</item>
     </string-array>
+    <string-array name="background_train_options">
+        <item>@string/background_train_spirit</item>
+        <item>@string/background_train_classic</item>
+    </string-array>
+    <string-array name="background_train_values" translatable="false">
+        <item>spirit</item>
+        <item>classic</item>
+    </string-array>
 </resources>

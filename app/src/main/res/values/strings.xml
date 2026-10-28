@@ -249,6 +249,9 @@
     <string name="cutscene_auto_swap_summary">With \"One screen + mini screen\", show the top screen large while a cutscene plays. Tap the small window to swap at any time</string>
     <string name="animated_background">Animated background</string>
     <string name="animated_background_summary">Show a countryside scene with a passing train around the screens and behind the buttons</string>
+    <string name="background_train">Train</string>
+    <string name="background_train_spirit">Spirit train</string>
+    <string name="background_train_classic">Classic steam train</string>
     <string name="launch_last_game_on_startup">Open last game on startup</string>
     <string name="launch_last_game_on_startup_summary">Opening the app goes straight into the last game you played. Exit the game to get to the game list</string>
     <string name="renderer">Renderer</string>
