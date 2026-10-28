@@ -55,13 +55,13 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :app:assembleGitHubProdRelease
-          cp app/build/outputs/apk/gitHubProd/release/app-gitHub-prod-release.apk melonDS-HD.apk
+          cp app/build/outputs/apk/gitHubProd/release/app-gitHub-prod-release.apk Spirit-Tracks-HD.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: melonDS-HD
-          path: melonDS-HD.apk
+          name: Spirit-Tracks-HD
+          path: Spirit-Tracks-HD.apk
 
       - name: Publish release
         uses: ncipollo/release-action@v1
@@ -72,5 +72,5 @@ jobs:
           commit: ${{ github.sha }}
           name: 'Spirit Tracks HD (latest build)'
           body: 'Spirit Tracks HD: melonDS with HD defaults (OpenGL, 4x internal resolution, Quilez filter) and a Screen fit option under Settings > Video.'
-          artifacts: melonDS-HD.apk
+          artifacts: Spirit-Tracks-HD.apk
           artifactContentType: application/vnd.android.package-archive
