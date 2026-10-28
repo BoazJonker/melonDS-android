@@ -140,6 +140,16 @@ ITEM_ICON = [
     ('M50,52l2.5,5.5 6,0.6 -4.5,4 1.3,6 -5.3,-3.1 -5.3,3.1 1.3,-6 -4.5,-4 6,-0.6z', '#FFF3D27A', INK, 1.5),
 ]
 
+SWAP_ICON = [
+    # A big screen and a small screen, with arrows showing them trading places
+    (rrect(27, 36, 30, 22, 3), '#FFF6EDD3', INK, 3),
+    (rrect(46, 26, 22, 16, 2.5), '#FF6FAE52', INK, 3),
+    ('M30,32q2,-9 12,-10', None, INK, 3.5),
+    ('M40,18l5,4l-5,4z', INK),
+    ('M70,48q-1,10 -11,13', None, INK, 3.5),
+    ('M61,57l-6,4l5,4z', INK),
+]
+
 # --- Plank buttons (L/R/Start/Select): socket at y 28..70, cap at y 28..61. Pressing moves the cap down by PLANK_PRESS_DEPTH ---
 PLANK_TOP = 28
 
@@ -209,6 +219,7 @@ DRAWABLES = {
     'st_action_spin': disk_cap(SPIN_ICON),
     'st_action_roll': disk_cap(ROLL_ICON),
     'st_action_item': disk_cap(ITEM_ICON),
+    'st_swap_screens': disk_cap(SWAP_ICON),
     # Full round button (socket + cap), used as the backing of the small utility buttons
     'st_button_round': disk_base() + disk_cap([]),
 }

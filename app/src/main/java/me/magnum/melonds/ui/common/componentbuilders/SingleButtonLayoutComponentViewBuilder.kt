@@ -17,10 +17,18 @@ class SingleButtonLayoutComponentViewBuilder(private val layoutComponent: Layout
 
         // In the plank drawables (100x100), the cap sinks 4 units into the socket
         const val PLANK_PRESS_DEPTH_FRACTION = 0.04f
+        // In the round button drawables, the cap sinks 5 units
+        const val ROUND_PRESS_DEPTH_FRACTION = 0.05f
     }
 
     override fun build(context: Context): View {
-        return if (layoutComponent in FACE_BUTTONS) {
+        return if (layoutComponent == LayoutComponent.BUTTON_SWAP_SCREENS) {
+            // Round 3D button, like the action buttons
+            CapImageView(context, ROUND_PRESS_DEPTH_FRACTION, isRound = true).apply {
+                background = ContextCompat.getDrawable(context, R.drawable.st_disk_base)
+                setImageResource(R.drawable.st_swap_screens)
+            }
+        } else if (layoutComponent in FACE_BUTTONS) {
             // 3D button: the socket is the background and the cap is the image, so that the cap can sink into the socket when pressed
             CapImageView(context, PLANK_PRESS_DEPTH_FRACTION).apply {
                 background = ContextCompat.getDrawable(context, R.drawable.st_plank_base)

@@ -43,7 +43,7 @@ object ButtonPressAnimator {
         if (view is CapImageView) {
             view.setColorFilter(darkenFilter)
             animateScroll(view, -(view.height * view.pressDepthFraction).toInt(), pressed = true)
-            showRipple(view, roundedRectangle = true)
+            showRipple(view, roundedRectangle = !view.isRound)
         } else {
             setDarkened(view, true)
             view.animate()

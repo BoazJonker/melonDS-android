@@ -8,5 +8,6 @@ import androidx.appcompat.widget.AppCompatImageView
  * the socket stays in place.
  *
  * @param pressDepthFraction How far the cap sinks when pressed, as a fraction of the view's height
+ * @param isRound Whether the button is round (otherwise it's a plank shaped button)
  */
-class CapImageView(context: Context, val pressDepthFraction: Float) : AppCompatImageView(context)
+class CapImageView(context: Context, val pressDepthFraction: Float, val isRound: Boolean = false) : AppCompatImageView(context)

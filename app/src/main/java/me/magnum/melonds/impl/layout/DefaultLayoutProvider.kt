@@ -213,6 +213,8 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize - spacing4dp / 2, startSelectY, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SELECT),
                 PositionedLayoutComponent(Rect(width / 2 + spacing4dp / 2, startSelectY, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_START),
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize / 2, utilityButtonsTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_MICROPHONE_TOGGLE),
+                // Small swap screens button in the bottom-right corner, level with Start/Select
+                PositionedLayoutComponent(Rect(width - safeRight - smallButtonsSize, startSelectY, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SWAP_SCREENS),
             )
         )
     }
@@ -260,6 +262,8 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(Rect((width - spacing4dp) / 2 - smallButtonsSize, height - safeBottom - smallButtonsSize, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SELECT),
                 PositionedLayoutComponent(Rect((width + spacing4dp) / 2, height - safeBottom - smallButtonsSize, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_START),
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize / 2, safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_MICROPHONE_TOGGLE),
+                // Small swap screens button in the top-right corner, below R
+                PositionedLayoutComponent(Rect(width - safeRight - smallButtonsSize, safeTop + lrButtonsSize + spacing4dp, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SWAP_SCREENS),
             )
         )
     }
