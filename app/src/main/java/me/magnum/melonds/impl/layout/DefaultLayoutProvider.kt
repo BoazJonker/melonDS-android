@@ -38,8 +38,8 @@ class DefaultLayoutProvider(
     }
 
     private fun getScreenFit(): ScreenFit {
-        val value = sharedPreferences.getString("video_screen_fit", "fit_equal") ?: "fit_equal"
-        return ScreenFit.entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: ScreenFit.FIT_EQUAL
+        val value = sharedPreferences.getString("video_screen_fit", "single_screen") ?: "single_screen"
+        return ScreenFit.entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: ScreenFit.SINGLE_SCREEN
     }
 
     fun buildDefaultLayout(variant: UILayoutVariant): UILayout {

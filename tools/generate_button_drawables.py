@@ -76,6 +76,11 @@ DRAWABLES = {
     'button_r': plank(3, 18, 94, 64, 14, 'R', 30, 60),
     'button_start': plank(3, 30, 94, 40, 18, 'START', 13, 70),
     'button_select': plank(3, 30, 94, 40, 18, 'SELECT', 13, 70),
+    # Individual face buttons, used by the animated A/B/X/Y view so each button can be pressed separately
+    'st_face_a': disk_button(50, 50, 46, 'A', 38),
+    'st_face_b': disk_button(50, 50, 46, 'B', 38),
+    'st_face_x': disk_button(50, 50, 46, 'X', 38),
+    'st_face_y': disk_button(50, 50, 46, 'Y', 38),
 }
 
 def to_vector(name, shapes):

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spirit Tracks styled on-screen button. Generated from shapes, no game assets -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="#3B2412"
+        android:pathData="M4.00,50.00a46.00,46.00 0 1,0 92.00,0a46.00,46.00 0 1,0 -92.00,0z" />
+    <path
+        android:fillColor="#E2B54A"
+        android:pathData="M5.80,50.00a44.20,44.20 0 1,0 88.40,0a44.20,44.20 0 1,0 -88.40,0z" />
+    <path
+        android:fillColor="#E6D3A3"
+        android:pathData="M7.40,50.00a42.60,42.60 0 1,0 85.20,0a42.60,42.60 0 1,0 -85.20,0z" />
+    <path
+        android:fillColor="#F6EDD3"
+        android:pathData="M8.40,49.00a41.60,41.60 0 1,0 83.20,0a41.60,41.60 0 1,0 -83.20,0z" />
+    <path
+        android:fillColor="#3A2614"
+        android:pathData="M29.371064969859344 69.0V65.92029470864033H32.47622237106497L46.78030810448761 31.0H52.86336235766912L67.19290020093771 65.92029470864033H70.80709979906229V69.0H53.01607501674481V65.92029470864033H56.73208305425318L53.60147354320161 58.15740120562626H39.32283991962491L36.14132618888144 65.92029470864033H40.67180174146014V69.0ZM40.569993302076355 55.07769591426658H52.35432016075016L46.50033489618218 40.54454119223041Z" />
+</vector>

@@ -51,7 +51,7 @@
             app:iconSpaceReserved="false"
             android:entries="@array/video_screen_fit_options"
             android:entryValues="@array/video_screen_fit_values"
-            android:defaultValue="fit_equal"/>
+            android:defaultValue="single_screen"/>
 
     <ListPreference
             android:key="fps_counter_position"

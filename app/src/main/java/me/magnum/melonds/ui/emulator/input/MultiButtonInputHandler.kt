@@ -77,10 +77,20 @@ abstract class MultiButtonInputHandler(inputListener: IInputListener, enableHapt
             performHapticFeedback(v, HapticFeedbackType.KEY_PRESS)
         }
 
+        val havePressedInputsChanged = pressedInputs != newPressedInputs
         pressedInputs.clear()
         pressedInputs.addAll(newPressedInputs)
+        if (havePressedInputsChanged) {
+            onPressedInputsChanged(v, pressedInputs)
+        }
 
         return true
+    }
+
+    /**
+     * Called when the set of pressed inputs changes. Used to animate the buttons.
+     */
+    protected open fun onPressedInputsChanged(view: View, pressedInputs: List<Input>) {
     }
 
     private fun initDimensions(viewWidth: Int, viewHeight: Int) {

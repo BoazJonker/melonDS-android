@@ -4,6 +4,7 @@ import me.magnum.melonds.domain.model.layout.LayoutComponent
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilder
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilderFactory
 import me.magnum.melonds.ui.common.componentbuilders.*
+import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeButtonsLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeScreenLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.ToggleableSingleButtonLayoutComponentViewBuilder
 
@@ -16,7 +17,7 @@ class RuntimeLayoutComponentViewBuilderFactory : LayoutComponentViewBuilderFacto
                 LayoutComponent.TOP_SCREEN -> RuntimeScreenLayoutComponentViewBuilder()
                 LayoutComponent.BOTTOM_SCREEN -> RuntimeScreenLayoutComponentViewBuilder()
                 LayoutComponent.DPAD -> DpadLayoutComponentViewBuilder()
-                LayoutComponent.BUTTONS -> ButtonsLayoutComponentViewBuilder()
+                LayoutComponent.BUTTONS -> RuntimeButtonsLayoutComponentViewBuilder()
                 LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE,
                 LayoutComponent.BUTTON_MICROPHONE_TOGGLE,
                 LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> ToggleableSingleButtonLayoutComponentViewBuilder(layoutComponent)
