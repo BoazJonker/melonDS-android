@@ -121,17 +121,10 @@ class EmulatorActivity : AppCompatActivity() {
         private const val SETTINGS_BACK_PRESS_COUNT = 3
         private const val SETTINGS_BACK_PRESS_WINDOW_MS = 1500L
 
-        // The small screen window (the map) is see-through while playing, and fully visible when held or after standing still for a while
-        private const val MINI_SCREEN_PLAYING_ALPHA = 0.55f
-        private const val MINI_SCREEN_IDLE_DELAY_MS = 5000L
+        // The small screen window (the map) is see-through, fully visible while it's touched, and back to see-through 5 seconds after the last touch
+        private const val MINI_SCREEN_IDLE_ALPHA = 0.55f
+        private const val MINI_SCREEN_VISIBLE_AFTER_TOUCH_MS = 5000L
         private const val MINI_SCREEN_FADE_DURATION_MS = 250L
-
-        // The small window is also fully visible while the top screen animates (e.g. a cutscene playing in it). Average per channel change (0-255) of the top
-        // screen above which it counts as animating, below which it counts as still, and how long each must last
-        private const val TOP_SCREEN_ANIMATING_THRESHOLD = 2.5f
-        private const val TOP_SCREEN_STILL_THRESHOLD = 0.6f
-        private const val TOP_SCREEN_ANIMATING_DELAY_MS = 500L
-        private const val TOP_SCREEN_STILL_DELAY_MS = 1500L
 
         const val KEY_ROM = "rom"
         const val KEY_PATH = "PATH"
@@ -268,22 +261,13 @@ class EmulatorActivity : AppCompatActivity() {
     private var backPressCount = 0
     private var firstBackPressTime = 0L
 
-    private var miniScreenAlpha = MINI_SCREEN_PLAYING_ALPHA
+    private var miniScreenAlpha = MINI_SCREEN_IDLE_ALPHA
     private var miniScreenAlphaAnimator: ValueAnimator? = null
     private var isMiniScreenHeld = false
-    private var isTopScreenAnimating = false
-    private var topScreenAnimatingSince = 0L
-    private var topScreenStillSince = 0L
-    private var isPlayerIdle = false
-    private var isTouchActive = false
-    private val playerIdleRunnable = Runnable {
-        if (isTouchActive) {
-            // Still holding the stick or the screen, so not standing still
-            restartIdleTimer()
-        } else {
-            isPlayerIdle = true
-            updateMiniScreenAlpha()
-        }
+    private var wasMiniScreenRecentlyTouched = false
+    private val miniScreenTouchTimeoutRunnable = Runnable {
+        wasMiniScreenRecentlyTouched = false
+        updateMiniScreenAlpha()
     }
 
     // Whether the screens were swapped automatically because a cutscene was detected
@@ -376,11 +360,7 @@ class EmulatorActivity : AppCompatActivity() {
         binding.textFps.visibility = View.INVISIBLE
         binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls(), showButtonLabels()))
         binding.viewLayoutControls.onMiniScreenTapped = { onManualScreenSwap() }
-        binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed ->
-            isMiniScreenHeld = isPressed
-            updateMiniScreenAlpha()
-        }
-        binding.viewLayoutControls.onUserInput = { isTouching -> onUserInput(isTouching) }
+        binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed -> onMiniScreenPressedChanged(isPressed) }
         binding.viewLayoutControls.apply {
             setFrontendInputHandler(frontendInputHandler)
             setSystemInputHandler(melonTouchHandler)
@@ -779,7 +759,6 @@ class EmulatorActivity : AppCompatActivity() {
         emulatorMotionManager.resume()
         updateAnimatedBackground()
         updateCutsceneDetection()
-        restartIdleTimer()
 
         if (!activeOverlays.hasActiveOverlays()) {
             disableScreenTimeOut()
@@ -950,43 +929,15 @@ class EmulatorActivity : AppCompatActivity() {
             onCutsceneChanged(false)
         }
 
-        // Screen activity is also used to show the small window fully while the top screen animates
-        mainScreenRenderer.screenActivityListener = if (isSingleScreenLayout) {
+        mainScreenRenderer.screenActivityListener = if (isAutoSwapEnabled) {
             { topScreenChange, bottomScreenChange ->
-                runOnUiThread {
-                    if (isAutoSwapEnabled) {
-                        cutsceneDetector.onScreenActivity(topScreenChange, bottomScreenChange)
-                    }
-                    onTopScreenActivity(topScreenChange)
-                }
+                runOnUiThread { cutsceneDetector.onScreenActivity(topScreenChange, bottomScreenChange) }
             }
         } else {
             null
         }
     }
 
-    private fun onTopScreenActivity(topScreenChange: Float) {
-        val now = SystemClock.uptimeMillis()
-        if (topScreenChange > TOP_SCREEN_ANIMATING_THRESHOLD) {
-            topScreenStillSince = 0L
-            if (topScreenAnimatingSince == 0L) {
-                topScreenAnimatingSince = now
-            }
-            if (!isTopScreenAnimating && now - topScreenAnimatingSince >= TOP_SCREEN_ANIMATING_DELAY_MS) {
-                isTopScreenAnimating = true
-                updateMiniScreenAlpha()
-            }
-        } else if (topScreenChange < TOP_SCREEN_STILL_THRESHOLD) {
-            topScreenAnimatingSince = 0L
-            if (topScreenStillSince == 0L) {
-                topScreenStillSince = now
-            }
-            if (isTopScreenAnimating && now - topScreenStillSince >= TOP_SCREEN_STILL_DELAY_MS) {
-                isTopScreenAnimating = false
-                updateMiniScreenAlpha()
-            }
-        }
-    }
 
     private fun onCutsceneChanged(isCutscene: Boolean) {
         val areScreensSwapped = binding.viewLayoutControls.areScreensSwapped()
@@ -1007,24 +958,20 @@ class EmulatorActivity : AppCompatActivity() {
         }
     }
 
-    private fun onUserInput(isTouching: Boolean) {
-        isTouchActive = isTouching
-        restartIdleTimer()
-        if (isPlayerIdle) {
-            isPlayerIdle = false
-            updateMiniScreenAlpha()
+    private fun onMiniScreenPressedChanged(isPressed: Boolean) {
+        isMiniScreenHeld = isPressed
+        handler.removeCallbacks(miniScreenTouchTimeoutRunnable)
+        if (!isPressed) {
+            // Stay fully visible for a while after being touched
+            wasMiniScreenRecentlyTouched = true
+            handler.postDelayed(miniScreenTouchTimeoutRunnable, MINI_SCREEN_VISIBLE_AFTER_TOUCH_MS)
         }
-    }
-
-    private fun restartIdleTimer() {
-        handler.removeCallbacks(playerIdleRunnable)
-        handler.postDelayed(playerIdleRunnable, MINI_SCREEN_IDLE_DELAY_MS)
+        updateMiniScreenAlpha()
     }
 
     private fun updateMiniScreenAlpha() {
-        // The small window is fully visible during cutscenes: either it shows the touch screen (auto-swapped), or the cutscene plays in it
-        val isMiniScreenShowingCutscene = isTopScreenAnimating && !binding.viewLayoutControls.areScreensSwapped()
-        val targetAlpha = if (isCutsceneSwapped || isMiniScreenShowingCutscene || isMiniScreenHeld || isPlayerIdle) 1f else MINI_SCREEN_PLAYING_ALPHA
+        // While a cutscene is swapped onto the main screen, the small window shows the touch screen, which stays fully visible
+        val targetAlpha = if (isCutsceneSwapped || isMiniScreenHeld || wasMiniScreenRecentlyTouched) 1f else MINI_SCREEN_IDLE_ALPHA
         if (targetAlpha == miniScreenAlpha) {
             return
         }
@@ -1239,7 +1186,7 @@ class EmulatorActivity : AppCompatActivity() {
         choreographerFrameRenderer.stopRendering()
         emulatorMotionManager.pause()
         binding.viewAnimatedBackground.stopAnimation()
-        handler.removeCallbacks(playerIdleRunnable)
+        handler.removeCallbacks(miniScreenTouchTimeoutRunnable)
         viewModel.pauseEmulator(false)
         viewModel.autoSaveOnLeave()
     }

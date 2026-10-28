@@ -2,7 +2,6 @@ package me.magnum.melonds.ui.emulator
 
 import android.content.Context
 import android.util.AttributeSet
-import android.view.MotionEvent
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,9 +17,11 @@ import me.magnum.melonds.ui.emulator.input.FrontendInputHandler
 import me.magnum.melonds.ui.emulator.input.IInputListener
 import me.magnum.melonds.ui.emulator.input.SingleButtonInputHandler
 import me.magnum.melonds.ui.emulator.input.StickInputHandler
+import me.magnum.melonds.ui.emulator.input.SwapScreensButtonHandler
 import me.magnum.melonds.ui.emulator.input.TapInputHandler
 import me.magnum.melonds.ui.emulator.input.TouchscreenInputHandler
 import me.magnum.melonds.ui.emulator.input.VirtualStylus
+import me.magnum.melonds.ui.emulator.input.view.AnimatedFaceButtonsView
 import me.magnum.melonds.ui.emulator.input.view.StickView
 import me.magnum.melonds.ui.emulator.input.view.ToggleableImageView
 import me.magnum.melonds.ui.emulator.model.ConnectedControllersState
@@ -53,12 +54,6 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
      * Called when the player starts or stops holding the small screen window.
      */
     var onMiniScreenPressedChanged: ((isPressed: Boolean) -> Unit)? = null
-
-    /**
-     * Called for every touch on the controls or the main screen (touches on the small screen window are excluded), with whether a finger is still down.
-     */
-    var onUserInput: ((isTouching: Boolean) -> Unit)? = null
-    private var isMiniScreenGesture = false
 
     /**
      * Whether touches on the main screen are sent to the DS touch screen while it shows the top screen. Used during cutscenes, so that tapping the cutscene
@@ -159,7 +154,15 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             getLayoutComponentView(LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.FAST_FORWARD, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_MICROPHONE_TOGGLE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.MICROPHONE, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.TOGGLE_SOFT_INPUT, enableHapticFeedback, touchVibrator))
-            getLayoutComponentView(LayoutComponent.BUTTON_SWAP_SCREENS)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.SWAP_SCREENS, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_SWAP_SCREENS)?.view?.let { swapView ->
+                val handler = if (swapView is AnimatedFaceButtonsView) {
+                    // 3D swap button: animate it and swap the screens the same way as tapping the small screen window
+                    SwapScreensButtonHandler(enableHapticFeedback) { onMiniScreenTapped?.invoke() }
+                } else {
+                    SingleButtonInputHandler(it, Input.SWAP_SCREENS, enableHapticFeedback, touchVibrator)
+                }
+                swapView.setOnTouchListener(handler)
+            }
             getLayoutComponentView(LayoutComponent.BUTTON_QUICK_SAVE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.QUICK_SAVE, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_QUICK_LOAD)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.QUICK_LOAD, enableHapticFeedback, touchVibrator))
             getLayoutComponentView(LayoutComponent.BUTTON_REWIND)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.REWIND, enableHapticFeedback, touchVibrator))
@@ -192,22 +195,6 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
                 it.view.animate().alpha(targetAlpha).setDuration(250).start()
             }
         }
-    }
-
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-            val miniScreenView = listOfNotNull(getLayoutComponentView(LayoutComponent.TOP_SCREEN), getLayoutComponentView(LayoutComponent.BOTTOM_SCREEN))
-                .firstOrNull { it.onTop }
-                ?.view
-            isMiniScreenGesture = miniScreenView != null &&
-                    event.x >= miniScreenView.x && event.x < miniScreenView.x + miniScreenView.width &&
-                    event.y >= miniScreenView.y && event.y < miniScreenView.y + miniScreenView.height
-        }
-        if (!isMiniScreenGesture) {
-            val isTouching = event.actionMasked != MotionEvent.ACTION_UP && event.actionMasked != MotionEvent.ACTION_CANCEL
-            onUserInput?.invoke(isTouching)
-        }
-        return super.dispatchTouchEvent(event)
     }
 
     private fun updateScreenInputs() {

@@ -6,6 +6,7 @@ import me.magnum.melonds.ui.common.LayoutComponentViewBuilderFactory
 import me.magnum.melonds.ui.common.componentbuilders.*
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeButtonsLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeScreenLayoutComponentViewBuilder
+import me.magnum.melonds.ui.emulator.input.componentbuilder.RuntimeSwapScreensLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.StickLayoutComponentViewBuilder
 import me.magnum.melonds.ui.emulator.input.componentbuilder.ToggleableSingleButtonLayoutComponentViewBuilder
 
@@ -30,6 +31,7 @@ class RuntimeLayoutComponentViewBuilderFactory(
                 LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE,
                 LayoutComponent.BUTTON_MICROPHONE_TOGGLE,
                 LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> ToggleableSingleButtonLayoutComponentViewBuilder(layoutComponent)
+                LayoutComponent.BUTTON_SWAP_SCREENS -> RuntimeSwapScreensLayoutComponentViewBuilder()
                 else -> SingleButtonLayoutComponentViewBuilder(layoutComponent)
             }
 
