@@ -126,6 +126,13 @@ class EmulatorActivity : AppCompatActivity() {
         private const val MINI_SCREEN_IDLE_DELAY_MS = 5000L
         private const val MINI_SCREEN_FADE_DURATION_MS = 250L
 
+        // The small window is also fully visible while the top screen animates (e.g. a cutscene playing in it). Average per channel change (0-255) of the top
+        // screen above which it counts as animating, below which it counts as still, and how long each must last
+        private const val TOP_SCREEN_ANIMATING_THRESHOLD = 2.5f
+        private const val TOP_SCREEN_STILL_THRESHOLD = 0.6f
+        private const val TOP_SCREEN_ANIMATING_DELAY_MS = 500L
+        private const val TOP_SCREEN_STILL_DELAY_MS = 1500L
+
         const val KEY_ROM = "rom"
         const val KEY_PATH = "PATH"
         const val KEY_URI = "uri"
@@ -264,6 +271,9 @@ class EmulatorActivity : AppCompatActivity() {
     private var miniScreenAlpha = MINI_SCREEN_PLAYING_ALPHA
     private var miniScreenAlphaAnimator: ValueAnimator? = null
     private var isMiniScreenHeld = false
+    private var isTopScreenAnimating = false
+    private var topScreenAnimatingSince = 0L
+    private var topScreenStillSince = 0L
     private var isPlayerIdle = false
     private var isTouchActive = false
     private val playerIdleRunnable = Runnable {
@@ -935,16 +945,46 @@ class EmulatorActivity : AppCompatActivity() {
     private fun updateCutsceneDetection() {
         val preferences = PreferenceManager.getDefaultSharedPreferences(this)
         val isSingleScreenLayout = preferences.getString("video_screen_fit", "single_screen") == "single_screen"
-        val isEnabled = isSingleScreenLayout && preferences.getBoolean("cutscene_auto_swap", true)
-        mainScreenRenderer.screenActivityListener = if (isEnabled) {
+        val isAutoSwapEnabled = isSingleScreenLayout && preferences.getBoolean("cutscene_auto_swap", true)
+        if (!isAutoSwapEnabled && isCutsceneSwapped) {
+            onCutsceneChanged(false)
+        }
+
+        // Screen activity is also used to show the small window fully while the top screen animates
+        mainScreenRenderer.screenActivityListener = if (isSingleScreenLayout) {
             { topScreenChange, bottomScreenChange ->
-                runOnUiThread { cutsceneDetector.onScreenActivity(topScreenChange, bottomScreenChange) }
+                runOnUiThread {
+                    if (isAutoSwapEnabled) {
+                        cutsceneDetector.onScreenActivity(topScreenChange, bottomScreenChange)
+                    }
+                    onTopScreenActivity(topScreenChange)
+                }
             }
         } else {
-            if (isCutsceneSwapped) {
-                onCutsceneChanged(false)
-            }
             null
+        }
+    }
+
+    private fun onTopScreenActivity(topScreenChange: Float) {
+        val now = SystemClock.uptimeMillis()
+        if (topScreenChange > TOP_SCREEN_ANIMATING_THRESHOLD) {
+            topScreenStillSince = 0L
+            if (topScreenAnimatingSince == 0L) {
+                topScreenAnimatingSince = now
+            }
+            if (!isTopScreenAnimating && now - topScreenAnimatingSince >= TOP_SCREEN_ANIMATING_DELAY_MS) {
+                isTopScreenAnimating = true
+                updateMiniScreenAlpha()
+            }
+        } else if (topScreenChange < TOP_SCREEN_STILL_THRESHOLD) {
+            topScreenAnimatingSince = 0L
+            if (topScreenStillSince == 0L) {
+                topScreenStillSince = now
+            }
+            if (isTopScreenAnimating && now - topScreenStillSince >= TOP_SCREEN_STILL_DELAY_MS) {
+                isTopScreenAnimating = false
+                updateMiniScreenAlpha()
+            }
         }
     }
 
@@ -982,8 +1022,9 @@ class EmulatorActivity : AppCompatActivity() {
     }
 
     private fun updateMiniScreenAlpha() {
-        // During cutscenes the small window shows the touch screen, which should stay fully visible
-        val targetAlpha = if (isCutsceneSwapped || isMiniScreenHeld || isPlayerIdle) 1f else MINI_SCREEN_PLAYING_ALPHA
+        // The small window is fully visible during cutscenes: either it shows the touch screen (auto-swapped), or the cutscene plays in it
+        val isMiniScreenShowingCutscene = isTopScreenAnimating && !binding.viewLayoutControls.areScreensSwapped()
+        val targetAlpha = if (isCutsceneSwapped || isMiniScreenShowingCutscene || isMiniScreenHeld || isPlayerIdle) 1f else MINI_SCREEN_PLAYING_ALPHA
         if (targetAlpha == miniScreenAlpha) {
             return
         }

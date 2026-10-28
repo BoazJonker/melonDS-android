@@ -53,7 +53,9 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
         )
 
         /**
-         * Cel-shaded look: colours are flattened into a few brightness bands and edges get dark outlines, detected with a Sobel filter on the brightness.
+         * Light cel-shaded look: colours are gently pulled towards a few brightness bands and strong edges get soft dark outlines, detected with a Sobel filter
+         * on the brightness. Outlines are only drawn on the darker side of an edge, so that text and HUD elements (usually dark on light) keep their shape and
+         * stay readable.
          */
         val ToonShader = ShaderProgramSource(
             TextureFiltering.LINEAR,
@@ -64,7 +66,7 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
                     "varying float alpha;\n" +
                     "const vec2 texelSize = vec2(1.0 / $TEXTURE_WIDTH.0, 1.0 / $TEXTURE_HEIGHT.0);\n" +
                     "const vec3 lumaWeights = vec3(0.299, 0.587, 0.114);\n" +
-                    "const float bands = 5.0;\n" +
+                    "const float bands = 6.0;\n" +
                     "const vec3 outlineColor = vec3(0.16, 0.10, 0.05);\n" +
                     "float luma(vec2 offset)\n" +
                     "{\n" +
@@ -75,7 +77,7 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
                     "    vec3 color = texture2D(tex, uv).bgr;\n" +
                     "    float l = dot(color, lumaWeights);\n" +
                     "    float banded = floor(l * bands + 0.5) / bands;\n" +
-                    "    vec3 toon = mix(color * (banded / max(l, 0.001)), color, 0.25);\n" +
+                    "    vec3 toon = mix(color * (banded / max(l, 0.001)), color, 0.6);\n" +
                     "    float tl = luma(vec2(-1.0, -1.0));\n" +
                     "    float t = luma(vec2(0.0, -1.0));\n" +
                     "    float tr = luma(vec2(1.0, -1.0));\n" +
@@ -86,8 +88,10 @@ class ShaderProgramSource private constructor(val textureFiltering: TextureFilte
                     "    float br = luma(vec2(1.0, 1.0));\n" +
                     "    float gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;\n" +
                     "    float gy = -tl - 2.0 * t - tr + bl + 2.0 * b + br;\n" +
-                    "    float edge = smoothstep(0.25, 0.55, length(vec2(gx, gy)));\n" +
-                    "    gl_FragColor = vec4(mix(clamp(toon, 0.0, 1.0), outlineColor, edge * 0.85), alpha);\n" +
+                    "    float neighbourhood = (tl + t + tr + ml + mr + bl + b + br) / 8.0;\n" +
+                    "    float darkerSide = step(l, neighbourhood);\n" +
+                    "    float edge = smoothstep(0.45, 0.9, length(vec2(gx, gy))) * darkerSide;\n" +
+                    "    gl_FragColor = vec4(mix(clamp(toon, 0.0, 1.0), outlineColor, edge * 0.45), alpha);\n" +
                     "}"
         )
 

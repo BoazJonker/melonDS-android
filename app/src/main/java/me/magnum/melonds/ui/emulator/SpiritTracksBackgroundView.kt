@@ -225,8 +225,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     }
 
     /**
-     * Draws a carved frame along the inner edges of each screen: a dark outer edge, wood, a gold inlay between two dark lines, and a soft shadow on the inside
-     * so the game looks slightly sunken into the frame.
+     * Draws a carved frame around each screen: a gold inlay between two dark lines next to the picture, then wood and a dark outer edge. The frame is drawn
+     * outside the screen so that it never covers the game's HUD.
      */
     private fun drawScreenFrames(canvas: Canvas) {
         val d = density
@@ -234,16 +234,12 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             val alpha = if (area.isMiniScreen) miniScreenAlpha else 1f
             val corner = if (area.isMiniScreen) 3 * d else 0f
 
-            // (colour, stroke width, distance of the stroke's centre from the edge)
-            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 1f * d, 0.5f * d, corner, alpha)
-            drawFrameLine(canvas, area.rect, 0xFF5C3A1E.toInt(), 2.2f * d, 2.1f * d, corner, alpha)
-            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 0.6f * d, 3.5f * d, corner, alpha)
-            drawFrameLine(canvas, area.rect, 0xFFE2B54A.toInt(), 1.3f * d, 4.45f * d, corner, alpha)
-            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 0.6f * d, 5.4f * d, corner, alpha)
-            // Inner shadow, fading out towards the picture
-            drawFrameLine(canvas, area.rect, 0x59000000, 1.2f * d, 6.3f * d, corner, alpha)
-            drawFrameLine(canvas, area.rect, 0x2E000000, 1.2f * d, 7.5f * d, corner, alpha)
-            drawFrameLine(canvas, area.rect, 0x12000000, 1.2f * d, 8.7f * d, corner, alpha)
+            // (colour, stroke width, distance of the stroke's centre from the edge; negative is outside the screen)
+            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 0.6f * d, -0.3f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFFE2B54A.toInt(), 1.3f * d, -1.25f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 0.6f * d, -2.2f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFF5C3A1E.toInt(), 2.2f * d, -3.6f * d, corner, alpha)
+            drawFrameLine(canvas, area.rect, 0xFF2A180B.toInt(), 1f * d, -5.2f * d, corner, alpha)
         }
     }
 
