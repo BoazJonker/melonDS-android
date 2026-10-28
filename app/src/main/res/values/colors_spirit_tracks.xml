@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spirit Tracks inspired palette: parchment panels, dark wood frames and gold trims -->
+    <color name="stParchment">#EADBB4</color>
+    <color name="stParchmentLight">#F6EDD3</color>
+    <color name="stParchmentDark">#D6C190</color>
+    <color name="stWoodDark">#3B2412</color>
+    <color name="stWood">#5C3A1E</color>
+    <color name="stInk">#3A2614</color>
+    <color name="stInkLight">#6E4C2C</color>
+    <color name="stGold">#E2B54A</color>
+    <color name="stGoldDark">#9A6416</color>
+    <color name="stFrame">#8A6238</color>
+</resources>

@@ -12,6 +12,79 @@
         <item name="preferenceTheme">@style/Preference</item>
     </style>
 
+    <!-- Settings theme styled after the menus in The Legend of Zelda: Spirit Tracks -->
+    <style name="SpiritTracksSettingsTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/stWood</item>
+        <item name="colorPrimaryDark">@color/stWoodDark</item>
+        <item name="colorAccent">@color/stGoldDark</item>
+        <item name="colorControlActivated">@color/stGoldDark</item>
+        <item name="colorControlNormal">@color/stInkLight</item>
+        <item name="colorControlHighlight">#33704A1E</item>
+        <item name="colorOnPrimary">@color/stGold</item>
+        <item name="android:colorBackground">@color/stParchment</item>
+        <item name="android:windowBackground">@drawable/st_parchment_background</item>
+        <item name="android:textColorPrimary">@color/stInk</item>
+        <item name="android:textColorSecondary">@color/stInkLight</item>
+        <item name="android:textColorTertiary">@color/stInkLight</item>
+        <item name="android:textViewStyle">@style/SpiritTracks.TextView</item>
+        <item name="textAppearanceListItem">@style/SpiritTracks.TextAppearance.Title</item>
+        <item name="android:textAppearanceListItem">@style/SpiritTracks.TextAppearance.Title</item>
+        <item name="android:textAppearanceListItemSecondary">@style/SpiritTracks.TextAppearance.Summary</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="toolbarNavigationButtonStyle">@style/SpiritTracks.Toolbar.Button.Navigation</item>
+        <item name="actionOverflowMenuStyle">@style/Menu.OverflowUnder</item>
+        <item name="preferenceTheme">@style/SpiritTracks.Preference</item>
+        <item name="alertDialogTheme">@style/SpiritTracks.Dialog</item>
+        <item name="android:alertDialogTheme">@style/SpiritTracks.Dialog</item>
+    </style>
+
+    <style name="SpiritTracks.TextView" parent="Widget.AppCompat.TextView">
+        <item name="android:fontFamily">serif</item>
+    </style>
+
+    <style name="SpiritTracks.TextAppearance.Title" parent="TextAppearance.AppCompat.Subhead">
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/stInk</item>
+    </style>
+
+    <style name="SpiritTracks.TextAppearance.Summary" parent="TextAppearance.AppCompat.Body1">
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textColor">@color/stInkLight</item>
+    </style>
+
+    <style name="SpiritTracks.Toolbar" parent="Toolbar">
+        <item name="android:background">@drawable/st_toolbar_background</item>
+        <item name="titleTextAppearance">@style/SpiritTracks.Toolbar.TitleText</item>
+        <item name="titleTextColor">@color/stGold</item>
+    </style>
+
+    <style name="SpiritTracks.Toolbar.TitleText" parent="Toolbar.TitleText">
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/stGold</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <style name="SpiritTracks.Toolbar.Button.Navigation" parent="Widget.AppCompat.Toolbar.Button.Navigation">
+        <item name="tint">@color/stGold</item>
+    </style>
+
+    <style name="SpiritTracks.Preference" parent="@style/PreferenceThemeOverlay">
+        <item name="android:tint">@color/stInk</item>
+    </style>
+
+    <style name="SpiritTracks.Dialog" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">@color/stGoldDark</item>
+        <item name="colorControlActivated">@color/stGoldDark</item>
+        <item name="android:windowBackground">@drawable/st_dialog_background</item>
+        <item name="android:textColorPrimary">@color/stInk</item>
+        <item name="android:textColorSecondary">@color/stInkLight</item>
+        <item name="android:textColorAlertDialogListItem">@color/stInk</item>
+        <item name="android:textViewStyle">@style/SpiritTracks.TextView</item>
+    </style>
+
     <style name="SplashTheme" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splashBackground</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/logo_splash</item>

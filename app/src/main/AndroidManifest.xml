@@ -79,6 +79,7 @@
         <activity
             android:name=".ui.settings.SettingsActivity"
             android:label="@string/title_activity_settings"
+            android:theme="@style/SpiritTracksSettingsTheme"
             android:parentActivityName=".ui.romlist.RomListActivity"
             android:launchMode="singleTop">
             <meta-data

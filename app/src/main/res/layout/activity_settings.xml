@@ -11,7 +11,7 @@
         android:id="@+id/view_status_bar_background"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="@color/colorPrimaryDark"
+        android:background="@color/stWoodDark"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/toolbar" />
 
@@ -19,7 +19,7 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        style="@style/Toolbar"
+        style="@style/SpiritTracks.Toolbar"
         app:layout_constraintTop_toBottomOf="@id/view_status_bar_background" />
 
     <androidx.fragment.app.FragmentContainerView
