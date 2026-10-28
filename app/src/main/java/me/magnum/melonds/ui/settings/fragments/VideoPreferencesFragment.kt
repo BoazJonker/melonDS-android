@@ -1,13 +1,11 @@
 package me.magnum.melonds.ui.settings.fragments
 
-import android.app.ActivityManager
-import android.os.Build
 import android.os.Bundle
-import androidx.core.content.getSystemService
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import dagger.hilt.android.AndroidEntryPoint
 import me.magnum.melonds.R
+import me.magnum.melonds.utils.RendererSupport
 import me.magnum.melonds.common.DirectoryAccessValidator
 import me.magnum.melonds.common.UriPermissionManager
 import me.magnum.melonds.domain.model.VideoRenderer
@@ -22,10 +20,6 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitleProvider {
-
-    private companion object {
-        const val GLES_3_2 = 0x30002
-    }
 
     private val helper by lazy { PreferenceFragmentHelper(this, uriPermissionManager, directoryAccessValidator) }
     @Inject lateinit var uriPermissionManager: UriPermissionManager
@@ -56,14 +50,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val dsiCameraSourcePreference = findPreference<ListPreference>("dsi_camera_source")!!
         val dsiCameraImagePreference = findPreference<StoragePickerPreference>("dsi_camera_static_image")!!
 
-        val activityManager = requireContext().getSystemService<ActivityManager>()
-
         rendererPreference.apply {
-            val deviceGlesVersion = activityManager?.deviceConfigurationInfo?.reqGlEsVersion ?: 0
-            if (deviceGlesVersion >= GLES_3_2) {
-                // Check if the device has a Qualcomm chipset. Only Adreno GPUs are supported for now
-                val isAdrenoGpu = Build.HARDWARE.lowercase() == "qcom"
-                if (!isAdrenoGpu) {
+            if (RendererSupport.isGpuRenderingSupported(requireContext())) {
+                if (!RendererSupport.isComputeRendererSupported(requireContext())) {
                     val computeRenderOptionIndex = rendererPreference.entryValues.indexOfFirst { it == VideoRenderer.COMPUTE.name.lowercase() }
                     rendererPreference.entries = rendererPreference.entries.filterIndexed { index, _ ->
                         index != computeRenderOptionIndex

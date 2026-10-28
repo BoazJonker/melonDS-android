@@ -16,14 +16,17 @@ import kotlinx.coroutines.launch
 import me.magnum.melonds.common.UriFileHandler
 import me.magnum.melonds.common.uridelegates.UriHandler
 import me.magnum.melonds.domain.model.VideoFiltering
+import me.magnum.melonds.domain.model.VideoRenderer
 import me.magnum.melonds.domain.repositories.SettingsRepository
 import me.magnum.melonds.migrations.Migrator
+import me.magnum.melonds.utils.RendererSupport
 import javax.inject.Inject
 
 @HiltAndroidApp
 class MelonDSApplication : Application(), Configuration.Provider {
     companion object {
         const val NOTIFICATION_CHANNEL_ID_BACKGROUND_TASKS = "channel_cheat_importing"
+        private const val KEY_BEST_RENDERER_SELECTED = "best_renderer_selected"
 
         init {
             System.loadLibrary("melonDS-android-frontend")
@@ -41,6 +44,7 @@ class MelonDSApplication : Application(), Configuration.Provider {
         applyTheme()
         performMigrations()
         forceToonFilter()
+        selectBestRenderer()
         MelonDSAndroidInterface.setup(UriFileHandler(this, uriHandler))
     }
 
@@ -48,6 +52,24 @@ class MelonDSApplication : Application(), Configuration.Provider {
      * The cel-shaded Toon filter is part of this build's look, so it's applied every time the app starts. Other filters can still be picked in the settings,
      * but only last until the app is restarted.
      */
+    /**
+     * Uses the compute renderer when the device supports it: it supports high resolutions like the OpenGL renderer, but draws more accurately (for example,
+     * the shadows of characters in Spirit Tracks, which flicker with the OpenGL renderer). This is done once, so a renderer picked later in the settings is kept.
+     */
+    private fun selectBestRenderer() {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        if (preferences.getBoolean(KEY_BEST_RENDERER_SELECTED, false)) {
+            return
+        }
+
+        preferences.edit {
+            if (RendererSupport.isComputeRendererSupported(this@MelonDSApplication)) {
+                putString("video_renderer", VideoRenderer.COMPUTE.name.lowercase())
+            }
+            putBoolean(KEY_BEST_RENDERER_SELECTED, true)
+        }
+    }
+
     private fun forceToonFilter() {
         PreferenceManager.getDefaultSharedPreferences(this).edit {
             putString("video_filtering", VideoFiltering.TOON.name.lowercase())
