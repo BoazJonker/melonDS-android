@@ -32,16 +32,20 @@ jobs:
 
       - name: Prepare signing key
         env:
-          MELONDS_KEYSTORE: ${{ secrets.MELONDS_KEYSTORE }}
-          MELONDS_KEYSTORE_PASSWORD: ${{ secrets.MELONDS_KEYSTORE_PASSWORD }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
           KEYSTORE="${{ runner.temp }}/keystore.jks"
-          if [ -n "$MELONDS_KEYSTORE" ]; then
-            echo "$MELONDS_KEYSTORE" | base64 -d > "$KEYSTORE"
-            PASSWORD="$MELONDS_KEYSTORE_PASSWORD"
+          if [ -n "$SIGNING_PASSWORD" ]; then
+            # Permanent key, stored encrypted in the repo. The same key signs every build, so updates install over the previous version
+            if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in .github/signing/release.jks.enc -out "$KEYSTORE" -pass env:SIGNING_PASSWORD; then
+              echo "::error::Could not unlock the signing key. Check that the SIGNING_PASSWORD secret is correct."
+              exit 1
+            fi
+            PASSWORD="$SIGNING_PASSWORD"
           else
-            # No signing secret configured: generate a throwaway key so the APK can still be installed.
-            # Add MELONDS_KEYSTORE/MELONDS_KEYSTORE_PASSWORD secrets to keep the same key across builds (needed to update in place).
+            # No SIGNING_PASSWORD secret configured: generate a throwaway key so the APK can still be installed.
+            # Each build then has a different key, so the previous version must be uninstalled before installing a new one.
+            echo "::warning::SIGNING_PASSWORD secret not set. Signing with a throwaway key."
             PASSWORD="melondshd"
             keytool -genkeypair -keystore "$KEYSTORE" -storepass "$PASSWORD" -keypass "$PASSWORD" \
               -alias melonds -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=melonDS HD"
