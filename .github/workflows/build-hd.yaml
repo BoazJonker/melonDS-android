@@ -70,7 +70,7 @@ jobs:
           removeArtifacts: true
           tag: melonds-hd-latest
           commit: ${{ github.sha }}
-          name: 'melonDS HD (latest build)'
-          body: 'melonDS with HD defaults (OpenGL, 4x internal resolution, Quilez filter) and a Screen fit option under Settings > Video.'
+          name: 'Spirit Tracks HD (latest build)'
+          body: 'Spirit Tracks HD: melonDS with HD defaults (OpenGL, 4x internal resolution, Quilez filter) and a Screen fit option under Settings > Video.'
           artifacts: melonDS-HD.apk
           artifactContentType: application/vnd.android.package-archive
