@@ -37,6 +37,13 @@
             android:entryValues="@array/video_filtering_values"
             android:defaultValue="quilez"/>
 
+    <SwitchPreference
+            android:key="animated_background"
+            android:title="@string/animated_background"
+            android:summary="@string/animated_background_summary"
+            app:iconSpaceReserved="false"
+            android:defaultValue="true" />
+
     <ListPreference
             android:key="video_screen_fit"
             android:title="@string/screen_fit"

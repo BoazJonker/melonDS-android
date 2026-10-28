@@ -40,6 +40,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.MutableCreationExtras
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -726,6 +727,7 @@ class EmulatorActivity : AppCompatActivity() {
         super.onResume()
         choreographerFrameRenderer.startRendering()
         emulatorMotionManager.resume()
+        updateAnimatedBackground()
 
         if (!activeOverlays.hasActiveOverlays()) {
             disableScreenTimeOut()
@@ -834,6 +836,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
         val topView = binding.viewLayoutControls.getLayoutComponentView(topScreen)
         val bottomView = binding.viewLayoutControls.getLayoutComponentView(bottomScreen)
+        binding.viewAnimatedBackground.setScreenRects(listOf(topView?.getRect(), bottomView?.getRect()))
         mainScreenRenderer.updateScreenAreas(
             topView?.getRect(),
             bottomView?.getRect(),
@@ -1021,7 +1024,18 @@ class EmulatorActivity : AppCompatActivity() {
         enableScreenTimeOut()
         choreographerFrameRenderer.stopRendering()
         emulatorMotionManager.pause()
+        binding.viewAnimatedBackground.stopAnimation()
         viewModel.pauseEmulator(false)
+    }
+
+    private fun updateAnimatedBackground() {
+        val isEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("animated_background", true)
+        binding.viewAnimatedBackground.isVisible = isEnabled
+        if (isEnabled) {
+            binding.viewAnimatedBackground.startAnimation()
+        } else {
+            binding.viewAnimatedBackground.stopAnimation()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

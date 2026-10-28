@@ -8,9 +8,18 @@ import me.magnum.melonds.domain.model.layout.LayoutComponent
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilder
 
 class SingleButtonLayoutComponentViewBuilder(private val layoutComponent: LayoutComponent) : LayoutComponentViewBuilder() {
+
+    private companion object {
+        // These buttons have their own fully styled drawables. Every other button is a utility button that gets a round backing
+        val FACE_BUTTONS = setOf(LayoutComponent.BUTTON_L, LayoutComponent.BUTTON_R, LayoutComponent.BUTTON_START, LayoutComponent.BUTTON_SELECT)
+    }
+
     override fun build(context: Context): View {
         return ImageView(context).apply {
             setImageResource(getInputDrawable())
+            if (layoutComponent !in FACE_BUTTONS) {
+                applySpiritTracksUtilityButtonStyle()
+            }
         }
     }
 

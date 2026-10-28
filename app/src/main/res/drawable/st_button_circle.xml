@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round Spirit Tracks styled backing for the small utility buttons (pause, fast forward, swap screens, etc.) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/stWoodDark" />
+        </shape>
+    </item>
+    <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/stGold" />
+        </shape>
+    </item>
+    <item android:left="3.5dp" android:top="3.5dp" android:right="3.5dp" android:bottom="3.5dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/stParchmentLight" />
+        </shape>
+    </item>
+</layer-list>

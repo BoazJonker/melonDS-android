@@ -5,6 +5,7 @@ import android.view.View
 import me.magnum.melonds.R
 import me.magnum.melonds.domain.model.layout.LayoutComponent
 import me.magnum.melonds.ui.common.LayoutComponentViewBuilder
+import me.magnum.melonds.ui.common.componentbuilders.applySpiritTracksUtilityButtonStyle
 import me.magnum.melonds.ui.emulator.input.view.ToggleableImageView
 
 class ToggleableSingleButtonLayoutComponentViewBuilder(private val layoutComponent: LayoutComponent) : LayoutComponentViewBuilder() {
@@ -14,6 +15,7 @@ class ToggleableSingleButtonLayoutComponentViewBuilder(private val layoutCompone
             val drawables = getToggleableImageViewDrawables()
             enabledDrawable = drawables.first
             disabledDrawable = drawables.second
+            applySpiritTracksUtilityButtonStyle()
         }
     }
 

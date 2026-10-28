@@ -14,6 +14,12 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 
+    <me.magnum.melonds.ui.emulator.SpiritTracksBackgroundView
+            android:id="@+id/viewAnimatedBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
     <me.magnum.melonds.ui.emulator.RuntimeLayoutView
             android:id="@+id/view_layout_controls"
             android:layout_width="match_parent"
