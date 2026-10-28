@@ -239,6 +239,8 @@
     <string name="filter">Filter</string>
     <string name="internal_resolution">Internal resolution</string>
     <string name="screen_fit">Screen fit</string>
+    <string name="cutscene_auto_swap">Full screen cutscenes</string>
+    <string name="cutscene_auto_swap_summary">With \"One screen + mini screen\", show the top screen large while a cutscene plays. Tap the small window to swap at any time</string>
     <string name="animated_background">Animated background</string>
     <string name="animated_background_summary">Show a countryside scene with a passing train around the screens and behind the buttons</string>
     <string name="launch_last_game_on_startup">Open last game on startup</string>

@@ -17,6 +17,7 @@ import me.magnum.melonds.ui.emulator.input.FrontendInputHandler
 import me.magnum.melonds.ui.emulator.input.IInputListener
 import me.magnum.melonds.ui.emulator.input.SingleButtonInputHandler
 import me.magnum.melonds.ui.emulator.input.StickInputHandler
+import me.magnum.melonds.ui.emulator.input.TapInputHandler
 import me.magnum.melonds.ui.emulator.input.TouchscreenInputHandler
 import me.magnum.melonds.ui.emulator.input.VirtualStylus
 import me.magnum.melonds.ui.emulator.input.view.StickView
@@ -40,6 +41,26 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
     private var connectedControllersState: ConnectedControllersState = ConnectedControllersState.NoControllers
     // Drives the stylus from the stick and action buttons, when the stick control style is used
     private val virtualStylus = VirtualStylus()
+    private var areControlsFaded = false
+
+    /**
+     * Called when the player taps the small screen window of the "one screen + mini screen" layout.
+     */
+    var onMiniScreenTapped: (() -> Unit)? = null
+
+    /**
+     * Whether touches on the main screen are sent to the DS touch screen while it shows the top screen. Used during cutscenes, so that tapping the cutscene
+     * advances it as if the touch screen had been tapped.
+     */
+    var forwardTouchesWhenSwapped = false
+        set(value) {
+            field = value
+            updateScreenInputs()
+        }
+
+    private companion object {
+        const val FADED_CONTROLS_ALPHA_FACTOR = 0.2f
+    }
 
     fun setFrontendInputHandler(frontendInputHandler: FrontendInputHandler) {
         this.frontendInputHandler = frontendInputHandler
@@ -135,12 +156,30 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         getLayoutComponentViews().forEach {
             if (!it.component.isScreen()) {
                 it.view.apply {
-                    alpha = inputAlpha
+                    alpha = inputAlpha * if (areControlsFaded) FADED_CONTROLS_ALPHA_FACTOR else 1f
                 }
             }
         }
 
         updateScreenInputs()
+    }
+
+    /**
+     * Fades the on-screen controls out (during cutscenes) or back in. The controls keep working while faded.
+     */
+    fun setControlsFaded(faded: Boolean) {
+        if (faded == areControlsFaded) {
+            return
+        }
+
+        areControlsFaded = faded
+        val inputAlpha = (currentRuntimeLayout?.softInputOpacity ?: 100) / 100f
+        val targetAlpha = inputAlpha * if (faded) FADED_CONTROLS_ALPHA_FACTOR else 1f
+        getLayoutComponentViews().forEach {
+            if (!it.component.isScreen()) {
+                it.view.animate().alpha(targetAlpha).setDuration(250).start()
+            }
+        }
     }
 
     private fun updateScreenInputs() {
@@ -149,6 +188,23 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         } else {
             LayoutComponent.BOTTOM_SCREEN to LayoutComponent.TOP_SCREEN
         }
+
+        val screenViews = listOfNotNull(getLayoutComponentView(LayoutComponent.TOP_SCREEN), getLayoutComponentView(LayoutComponent.BOTTOM_SCREEN))
+        val miniScreenView = screenViews.firstOrNull { it.onTop }
+        val mainScreenView = screenViews.firstOrNull { !it.onTop }
+        if (miniScreenView != null && mainScreenView != null) {
+            // "One screen + mini screen" layout: tapping the small window swaps the screens, and the main screen receives the touch input
+            miniScreenView.view.setOnTouchListener(TapInputHandler { onMiniScreenTapped?.invoke() })
+            val mainShowsTouchScreen = mainScreenView.component == touchScreenComponent
+            val mainScreenHandler = if (mainShowsTouchScreen || forwardTouchesWhenSwapped) {
+                systemInputHandler?.let { TouchscreenInputHandler(it, virtualStylus) }
+            } else {
+                null
+            }
+            mainScreenView.view.setOnTouchListener(mainScreenHandler)
+            return
+        }
+
         systemInputHandler?.let {
             getLayoutComponentView(touchScreenComponent)?.view?.setOnTouchListener(TouchscreenInputHandler(it, virtualStylus))
         }

@@ -44,6 +44,13 @@
             app:iconSpaceReserved="false"
             android:defaultValue="true" />
 
+    <SwitchPreference
+            android:key="cutscene_auto_swap"
+            android:title="@string/cutscene_auto_swap"
+            android:summary="@string/cutscene_auto_swap_summary"
+            app:iconSpaceReserved="false"
+            android:defaultValue="true" />
+
     <ListPreference
             android:key="video_screen_fit"
             android:title="@string/screen_fit"

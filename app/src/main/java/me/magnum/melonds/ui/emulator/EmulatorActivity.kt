@@ -237,7 +237,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
 
         override fun onSwapScreens() {
-            swapScreen()
+            onManualScreenSwap()
         }
 
         override fun onQuickSave() {
@@ -254,6 +254,10 @@ class EmulatorActivity : AppCompatActivity() {
     }
     private var backPressCount = 0
     private var firstBackPressTime = 0L
+
+    // Whether the screens were swapped automatically because a cutscene was detected
+    private var isCutsceneSwapped = false
+    private val cutsceneDetector = CutsceneDetector { isCutscene -> onCutsceneChanged(isCutscene) }
 
     private val settingsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.onSettingsChanged()
@@ -340,6 +344,7 @@ class EmulatorActivity : AppCompatActivity() {
 
         binding.textFps.visibility = View.INVISIBLE
         binding.viewLayoutControls.setLayoutComponentViewBuilderFactory(RuntimeLayoutComponentViewBuilderFactory(useStickControls()))
+        binding.viewLayoutControls.onMiniScreenTapped = { onManualScreenSwap() }
         binding.viewLayoutControls.apply {
             setFrontendInputHandler(frontendInputHandler)
             setSystemInputHandler(melonTouchHandler)
@@ -737,6 +742,7 @@ class EmulatorActivity : AppCompatActivity() {
         choreographerFrameRenderer.startRendering()
         emulatorMotionManager.resume()
         updateAnimatedBackground()
+        updateCutsceneDetection()
 
         if (!activeOverlays.hasActiveOverlays()) {
             disableScreenTimeOut()
@@ -889,6 +895,54 @@ class EmulatorActivity : AppCompatActivity() {
                 showMessageBanner(R.string.exit_hint, isLongMessage = true)
             }
         }
+    }
+
+    /**
+     * Enables cutscene detection when using the "one screen + mini screen" layout and the auto-swap setting is on. Cutscenes play on the top screen, which is
+     * the small window in that layout, so the screens are swapped while a cutscene plays.
+     */
+    private fun updateCutsceneDetection() {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        val isSingleScreenLayout = preferences.getString("video_screen_fit", "single_screen") == "single_screen"
+        val isEnabled = isSingleScreenLayout && preferences.getBoolean("cutscene_auto_swap", true)
+        mainScreenRenderer.screenActivityListener = if (isEnabled) {
+            { topScreenChange, bottomScreenChange ->
+                runOnUiThread { cutsceneDetector.onScreenActivity(topScreenChange, bottomScreenChange) }
+            }
+        } else {
+            if (isCutsceneSwapped) {
+                onCutsceneChanged(false)
+            }
+            null
+        }
+    }
+
+    private fun onCutsceneChanged(isCutscene: Boolean) {
+        val areScreensSwapped = binding.viewLayoutControls.areScreensSwapped()
+        if (isCutscene && !areScreensSwapped) {
+            isCutsceneSwapped = true
+            binding.viewLayoutControls.forwardTouchesWhenSwapped = true
+            swapScreen()
+            binding.viewLayoutControls.setControlsFaded(true)
+        } else if (!isCutscene && isCutsceneSwapped) {
+            isCutsceneSwapped = false
+            binding.viewLayoutControls.forwardTouchesWhenSwapped = false
+            if (areScreensSwapped) {
+                swapScreen()
+            }
+            binding.viewLayoutControls.setControlsFaded(false)
+        }
+    }
+
+    private fun onManualScreenSwap() {
+        // A manual swap overrides cutscene detection until gameplay resumes
+        cutsceneDetector.suppressUntilGameplay()
+        if (isCutsceneSwapped) {
+            isCutsceneSwapped = false
+            binding.viewLayoutControls.forwardTouchesWhenSwapped = false
+            binding.viewLayoutControls.setControlsFaded(false)
+        }
+        swapScreen()
     }
 
     private fun useStickControls(): Boolean {

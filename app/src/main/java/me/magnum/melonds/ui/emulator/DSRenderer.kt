@@ -23,6 +23,20 @@ import kotlin.math.roundToInt
 
 class DSRenderer(private val context: Context) : EmulatorRenderer {
 
+    private companion object {
+        // Size of the downscaled copy of both screens used to detect which screen is changing. The top half holds the top screen
+        const val SAMPLE_WIDTH = 16
+        const val SAMPLE_HEIGHT = 32
+        const val SAMPLE_FRAME_INTERVAL = 6
+    }
+
+    /**
+     * Called on the render thread with how much the top and bottom screens changed since the previous sample (average per channel difference, 0-255). Used to
+     * detect cutscenes. Sampling only happens while a listener is set.
+     */
+    @Volatile
+    var screenActivityListener: ((topScreenChange: Float, bottomScreenChange: Float) -> Unit)? = null
+
     private val configurationLock = Any()
     private var rendererConfiguration: RuntimeRendererConfiguration? = null
     private var mustUpdateConfiguration = false
@@ -40,6 +54,16 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
 
     private var backgroundVbo = 0
     private var backgroundVao = 0
+
+    private var sampleFramebuffer = 0
+    private var sampleTexture = 0
+    private var sampleVbo = 0
+    private var sampleVao = 0
+    private var sampleFrameCounter = 0
+    private val samplePixels = ByteBuffer.allocateDirect(SAMPLE_WIDTH * SAMPLE_HEIGHT * 4).order(ByteOrder.nativeOrder())
+    private val previousSamplePixels = ByteArray(SAMPLE_WIDTH * SAMPLE_HEIGHT * 4)
+    private val currentSamplePixels = ByteArray(SAMPLE_WIDTH * SAMPLE_HEIGHT * 4)
+    private var hasPreviousSample = false
 
     // Lock used when manipulating background properties
     private val backgroundLock = Any()
@@ -133,6 +157,8 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
 
         // Create background shader
         backgroundShader = ShaderFactory.createShaderProgram(ShaderProgramSource.BackgroundShader)
+
+        setupScreenSampling()
 
         synchronized(configurationLock) {
             mustUpdateConfiguration = true
@@ -283,6 +309,116 @@ class DSRenderer(private val context: Context) : EmulatorRenderer {
             GLES30.glBindVertexArray(0)
             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0)
         }
+
+        if (screenActivityListener != null && ++sampleFrameCounter >= SAMPLE_FRAME_INTERVAL) {
+            sampleFrameCounter = 0
+            sampleScreens(presentFrameWrapper.textureId)
+        }
+    }
+
+    private fun setupScreenSampling() {
+        val textures = IntArray(1)
+        GLES30.glGenTextures(1, textures, 0)
+        sampleTexture = textures[0]
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, sampleTexture)
+        GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_RGBA, SAMPLE_WIDTH, SAMPLE_HEIGHT, 0, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, null)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_NEAREST)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_NEAREST)
+
+        val framebuffers = IntArray(1)
+        GLES30.glGenFramebuffers(1, framebuffers, 0)
+        sampleFramebuffer = framebuffers[0]
+        val previousFramebuffer = IntArray(1)
+        GLES30.glGetIntegerv(GLES30.GL_FRAMEBUFFER_BINDING, previousFramebuffer, 0)
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, sampleFramebuffer)
+        GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0, GLES30.GL_TEXTURE_2D, sampleTexture, 0)
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, previousFramebuffer[0])
+
+        // Full-screen quad covering the whole frame texture (position x, y, uv u, v)
+        val quad = floatArrayOf(
+            -1f, -1f, 0f, 0f,
+            1f, -1f, 1f, 0f,
+            -1f, 1f, 0f, 1f,
+            -1f, 1f, 0f, 1f,
+            1f, -1f, 1f, 0f,
+            1f, 1f, 1f, 1f,
+        )
+        val quadBuffer = ByteBuffer.allocateDirect(quad.size * Float.SIZE_BYTES).order(ByteOrder.nativeOrder()).asFloatBuffer().apply {
+            put(quad)
+            position(0)
+        }
+        val vbos = IntArray(1)
+        val vaos = IntArray(1)
+        GLES30.glGenBuffers(1, vbos, 0)
+        GLES30.glGenVertexArrays(1, vaos, 0)
+        sampleVbo = vbos[0]
+        sampleVao = vaos[0]
+        GLES30.glBindVertexArray(sampleVao)
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, sampleVbo)
+        GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, quad.size * Float.SIZE_BYTES, quadBuffer, GLES30.GL_STATIC_DRAW)
+        GLES30.glEnableVertexAttribArray(backgroundShader.attribPos)
+        GLES30.glEnableVertexAttribArray(backgroundShader.attribUv)
+        GLES30.glVertexAttribPointer(backgroundShader.attribPos, 2, GLES30.GL_FLOAT, false, 4 * Float.SIZE_BYTES, 0)
+        GLES30.glVertexAttribPointer(backgroundShader.attribUv, 2, GLES30.GL_FLOAT, false, 4 * Float.SIZE_BYTES, 2 * Float.SIZE_BYTES)
+        GLES30.glBindVertexArray(0)
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0)
+        hasPreviousSample = false
+    }
+
+    /**
+     * Draws a tiny copy of both screens and compares it with the previous one to measure how much each screen changed.
+     */
+    private fun sampleScreens(frameTexture: Int) {
+        val listener = screenActivityListener ?: return
+
+        val previousFramebuffer = IntArray(1)
+        val previousViewport = IntArray(4)
+        GLES30.glGetIntegerv(GLES30.GL_FRAMEBUFFER_BINDING, previousFramebuffer, 0)
+        GLES30.glGetIntegerv(GLES30.GL_VIEWPORT, previousViewport, 0)
+
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, sampleFramebuffer)
+        GLES30.glViewport(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT)
+        GLES30.glDisable(GLES30.GL_BLEND)
+        GLES30.glBindVertexArray(sampleVao)
+        backgroundShader.use()
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, frameTexture)
+        GLES30.glUniform1i(backgroundShader.uniformTex, 0)
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 6)
+        GLES30.glBindVertexArray(0)
+
+        samplePixels.position(0)
+        GLES30.glReadPixels(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, samplePixels)
+
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, previousFramebuffer[0])
+        GLES30.glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3])
+
+        samplePixels.position(0)
+        samplePixels.get(currentSamplePixels)
+        if (hasPreviousSample) {
+            // Rows are read from the bottom of the framebuffer, which holds the start of the texture: the top screen
+            val halfSize = currentSamplePixels.size / 2
+            listener(averageDifference(0, halfSize), averageDifference(halfSize, currentSamplePixels.size))
+        }
+        currentSamplePixels.copyInto(previousSamplePixels)
+        hasPreviousSample = true
+    }
+
+    private fun averageDifference(start: Int, end: Int): Float {
+        var total = 0L
+        var count = 0
+        var i = start
+        while (i < end) {
+            // Compare RGB, skip alpha
+            for (channel in 0..2) {
+                val current = currentSamplePixels[i + channel].toInt() and 0xFF
+                val previous = previousSamplePixels[i + channel].toInt() and 0xFF
+                total += kotlin.math.abs(current - previous)
+                count++
+            }
+            i += 4
+        }
+        return if (count == 0) 0f else total.toFloat() / count
     }
 
     private fun renderBackground() {
