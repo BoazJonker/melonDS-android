@@ -44,6 +44,10 @@ interface SettingsRepository {
      */
     fun getAutoInternalResolutionCeiling(): Int
     fun setAutoInternalResolutionCeiling(scale: Int)
+    /**
+     * Resets the automatic resolution to the one this device starts at. Called before a game is loaded.
+     */
+    fun startAutoInternalResolutionSession()
     fun getVideoFiltering(): Flow<VideoFiltering>
     fun isThreadedRenderingEnabled(): Flow<Boolean>
     fun getRenderStrategy(): Flow<RenderStrategy>

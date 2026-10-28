@@ -121,12 +121,14 @@ class EmulatorViewModel @Inject constructor(
 
     private companion object {
         const val AUTO_RESOLUTION_SAMPLE_INTERVAL = 1000L
-        const val AUTO_RESOLUTION_SETTLE_TIME_MS = 8000L
-        const val AUTO_RESOLUTION_AVERAGE_SAMPLES = 5
-        const val AUTO_RESOLUTION_MIN_FPS = 56.0
-        const val AUTO_RESOLUTION_STABLE_FPS = 59f
-        const val AUTO_RESOLUTION_STEP_UP_DELAY_MS = 90_000L
-        const val AUTO_RESOLUTION_TRIAL_TIME_MS = 20_000L
+        const val AUTO_RESOLUTION_SETTLE_TIME_MS = 10_000L
+        // The frame rate must stay low for this many seconds in a row before the resolution is lowered, so short dips don't trigger it
+        const val AUTO_RESOLUTION_AVERAGE_SAMPLES = 15
+        const val AUTO_RESOLUTION_MIN_FPS = 52.0
+        // Lowering the resolution rebuilds the renderer, which briefly freezes the game, so it's done at most this often
+        const val AUTO_RESOLUTION_MIN_STEP_INTERVAL_MS = 180_000L
+        // A slowdown within this much play time means the resolution is too high for the device, rather than the device getting warm
+        const val AUTO_RESOLUTION_EARLY_PLAY_TIME_MS = 180_000L
         const val MIN_AUTO_RESOLUTION_SCALE = 1
     }
 
@@ -257,6 +259,7 @@ class EmulatorViewModel @Inject constructor(
     }
 
     private suspend fun launchRom(rom: Rom) = coroutineScope {
+        prepareAutoResolution()
         startEmulatorSession(EmulatorSession.SessionType.RomSession(rom))
         startObservingMainScreenBackground()
         startObservingSecondaryScreenBackground()
@@ -483,9 +486,25 @@ class EmulatorViewModel @Inject constructor(
     }
 
     /**
-     * With the automatic internal resolution, keeps the highest resolution that still runs at a steady 60 FPS: the resolution goes down one step when the
-     * frame rate stays below 60, and after a long stable period, one step up is tried. If that step can't keep 60 FPS, the resolution goes back down and that
-     * step is remembered as the device's limit.
+     * Before a game is loaded with the automatic internal resolution, resets the resolution to the one that suits the device, and waits for the renderer
+     * configuration to pick it up.
+     */
+    private suspend fun prepareAutoResolution() {
+        if (!settingsRepository.isAutoInternalResolutionEnabled()) {
+            return
+        }
+
+        settingsRepository.startAutoInternalResolutionSession()
+        val scale = settingsRepository.getAutoInternalResolutionScale()
+        withTimeoutOrNull(2000) {
+            settingsRepository.observeRenderConfiguration().first { it.resolutionScaling == scale }
+        }
+    }
+
+    /**
+     * With the automatic internal resolution, the game starts at the resolution that suits the device (see [prepareAutoResolution]) and the resolution never
+     * goes up during play. It only goes down one step when the frame rate stays low for a long time, and at most every few minutes, because each change briefly
+     * freezes the game. A slowdown early in the game lowers the device's limit for next time; a later one is assumed to be the device getting warm.
      */
     private fun startAutoResolution(rom: Rom) {
         if (!settingsRepository.isAutoInternalResolutionEnabled()) {
@@ -495,52 +514,40 @@ class EmulatorViewModel @Inject constructor(
         sessionCoroutineScope.launch {
             val recentFps = ArrayDeque<Float>()
             var lastChangeTime = SystemClock.uptimeMillis()
-            var stableSince = lastChangeTime
-            var stepUpTrialTime = 0L
+            var lastStepDownTime = 0L
+            var playTime = 0L
 
             while (isActive) {
                 delay(AUTO_RESOLUTION_SAMPLE_INTERVAL)
                 val now = SystemClock.uptimeMillis()
-                // Ignore paused time and the time right after loading or changing the resolution
-                if (isEmulatorPaused || _emulatorState.value !is EmulatorState.RunningRom || now - lastChangeTime < AUTO_RESOLUTION_SETTLE_TIME_MS) {
+                if (isEmulatorPaused || _emulatorState.value !is EmulatorState.RunningRom) {
                     recentFps.clear()
-                    stableSince = now
+                    lastChangeTime = maxOf(lastChangeTime, now - AUTO_RESOLUTION_SETTLE_TIME_MS / 2)
+                    continue
+                }
+                playTime += AUTO_RESOLUTION_SAMPLE_INTERVAL
+                // Ignore the time right after loading, resuming or changing the resolution
+                if (now - lastChangeTime < AUTO_RESOLUTION_SETTLE_TIME_MS) {
+                    recentFps.clear()
                     continue
                 }
 
-                val fps = emulatorManager.getFps()
-                recentFps.addLast(fps)
+                recentFps.addLast(emulatorManager.getFps())
                 if (recentFps.size > AUTO_RESOLUTION_AVERAGE_SAMPLES) {
                     recentFps.removeFirst()
                 }
 
                 val scale = settingsRepository.getAutoInternalResolutionScale()
                 val isSlow = recentFps.size >= AUTO_RESOLUTION_AVERAGE_SAMPLES && recentFps.average() < AUTO_RESOLUTION_MIN_FPS
-                if (isSlow && scale > MIN_AUTO_RESOLUTION_SCALE) {
-                    if (stepUpTrialTime != 0L) {
-                        // The last step up couldn't keep up, so don't try it again
+                val canStepDown = lastStepDownTime == 0L || now - lastStepDownTime > AUTO_RESOLUTION_MIN_STEP_INTERVAL_MS
+                if (isSlow && canStepDown && scale > MIN_AUTO_RESOLUTION_SCALE) {
+                    if (playTime < AUTO_RESOLUTION_EARLY_PLAY_TIME_MS) {
                         settingsRepository.setAutoInternalResolutionCeiling(scale - 1)
-                        stepUpTrialTime = 0L
                     }
                     applyAutoResolutionScale(rom, scale - 1)
+                    lastStepDownTime = now
                     lastChangeTime = now
                     recentFps.clear()
-                    stableSince = now
-                } else if (fps >= AUTO_RESOLUTION_STABLE_FPS) {
-                    if (stepUpTrialTime != 0L && now - stepUpTrialTime > AUTO_RESOLUTION_TRIAL_TIME_MS) {
-                        // The step up held a steady frame rate
-                        stepUpTrialTime = 0L
-                    }
-                    val ceiling = settingsRepository.getAutoInternalResolutionCeiling()
-                    if (now - stableSince > AUTO_RESOLUTION_STEP_UP_DELAY_MS && scale < ceiling) {
-                        applyAutoResolutionScale(rom, scale + 1)
-                        stepUpTrialTime = now
-                        lastChangeTime = now
-                        recentFps.clear()
-                        stableSince = now
-                    }
-                } else {
-                    stableSince = now
                 }
             }
         }

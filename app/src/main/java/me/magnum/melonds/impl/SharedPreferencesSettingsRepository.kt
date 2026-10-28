@@ -58,6 +58,7 @@ import me.magnum.melonds.ui.Theme
 import me.magnum.melonds.utils.enumValueOfIgnoreCase
 import java.io.File
 import java.util.UUID
+import kotlin.math.min
 import kotlin.math.pow
 
 class SharedPreferencesSettingsRepository(
@@ -72,9 +73,8 @@ class SharedPreferencesSettingsRepository(
     companion object {
         private const val AUTO_INTERNAL_RESOLUTION = "auto"
         private const val KEY_AUTO_INTERNAL_RESOLUTION_SCALE = "video_internal_resolution_auto_scale"
-        private const val KEY_AUTO_INTERNAL_RESOLUTION_CEILING = "video_internal_resolution_auto_ceiling"
-        private const val DEFAULT_AUTO_INTERNAL_RESOLUTION_SCALE = 4
-        private const val MAX_AUTO_INTERNAL_RESOLUTION_SCALE = 5
+        // Versioned so that limits learned with the earlier automatic resolution, which changed resolution much more often, are discarded
+        private const val KEY_AUTO_INTERNAL_RESOLUTION_CEILING = "video_internal_resolution_auto_ceiling_v2"
 
         private const val TAG = "SPSettingsRepository"
         private const val CONTROLLER_CONFIG_FILE = "controller_config.json"
@@ -635,7 +635,7 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun getAutoInternalResolutionScale(): Int {
-        return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_SCALE, DEFAULT_AUTO_INTERNAL_RESOLUTION_SCALE)
+        return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_SCALE, DevicePerformance.getTier(context).startScale)
     }
 
     override fun setAutoInternalResolutionScale(scale: Int) {
@@ -643,7 +643,13 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun getAutoInternalResolutionCeiling(): Int {
-        return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_CEILING, MAX_AUTO_INTERNAL_RESOLUTION_SCALE)
+        return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_CEILING, DevicePerformance.getMaxUsefulScale(context))
+    }
+
+    override fun startAutoInternalResolutionSession() {
+        // Every game starts at the resolution that suits the device, so a resolution lowered because the device got warm isn't kept forever
+        val scale = min(DevicePerformance.getTier(context).startScale, getAutoInternalResolutionCeiling())
+        preferences.edit(commit = true) { putInt(KEY_AUTO_INTERNAL_RESOLUTION_SCALE, scale) }
     }
 
     override fun setAutoInternalResolutionCeiling(scale: Int) {

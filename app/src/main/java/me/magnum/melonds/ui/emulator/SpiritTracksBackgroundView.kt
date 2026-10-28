@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -108,6 +109,9 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     private val framePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val path = Path()
     private val path2 = Path()
+    // Gradients used by the trains, reused between frames instead of being created on every frame
+    private val gradientCache = HashMap<Long, Shader>()
+    private val shaderMatrix = Matrix()
     private val rect = RectF()
 
     // Static layers (sky, sun, rays, vignette)
@@ -193,6 +197,7 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         midHillShader = verticalGradient(hf * 0.6f, hf * 0.86f, 0xFF7DBE5C.toInt(), 0xFF559A40.toInt())
         groundShader = verticalGradient(hf * 0.79f, hf, 0xFF62A048.toInt(), 0xFF467A32.toInt())
 
+        gradientCache.clear()
         skyCache?.recycle()
         skyCache = null
         if (w > 0 && h > 0) {
@@ -678,7 +683,25 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     private fun vGradient(top: Float, bottom: Float, vararg colours: Int): Paint {
-        shaded.shader = LinearGradient(0f, top, 0f, bottom, colours, null, Shader.TileMode.CLAMP)
+        val key = (colours.contentHashCode().toLong() shl 32) xor (top.toBits().toLong() * 31 + bottom.toBits().toLong())
+        shaded.shader = gradientCache.getOrPut(key) { LinearGradient(0f, top, 0f, bottom, colours, null, Shader.TileMode.CLAMP) }
+        return shaded
+    }
+
+    /**
+     * Sets a radial gradient centred on ([x], [y]) on the shaded paint. The gradient is created once around the origin and moved into place.
+     */
+    private fun radial(x: Float, y: Float, radius: Float, inner: Int, outer: Int): Paint {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            // Older versions share a shader's native object with frames already drawn, so moving a reused shader would move it there too
+            shaded.shader = RadialGradient(x, y, radius, inner, outer, Shader.TileMode.CLAMP)
+            return shaded
+        }
+        val key = ((inner.toLong() * 31 + outer.toLong()) shl 20) xor radius.toBits().toLong() xor 0x5EEDL
+        val shader = gradientCache.getOrPut(key) { RadialGradient(0f, 0f, radius, inner, outer, Shader.TileMode.CLAMP) }
+        shaderMatrix.setTranslate(x, y)
+        shader.setLocalMatrix(shaderMatrix)
+        shaded.shader = shader
         return shaded
     }
 
@@ -755,8 +778,7 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         val cy = railTop - radius
         fill.color = INK
         canvas.drawCircle(cx, cy, radius, fill)
-        shaded.shader = RadialGradient(cx - radius * 0.3f, cy - radius * 0.3f, radius, 0xFFE0604A.toInt(), 0xFF8A2A1E.toInt(), Shader.TileMode.CLAMP)
-        canvas.drawCircle(cx, cy, radius * 0.74f, shaded)
+        canvas.drawCircle(cx, cy, radius * 0.74f, radial(cx - radius * 0.3f, cy - radius * 0.3f, radius, 0xFFE0604A.toInt(), 0xFF8A2A1E.toInt()))
         stroke.color = 0xFF2A1A12.toInt()
         stroke.strokeWidth = max(d, radius * 0.16f)
         for (i in 0 until 4) {
@@ -873,8 +895,7 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
                 canvas.drawCircle(cx, cy, 5.6f * d, fill)
                 fill.color = WOOD
                 canvas.drawCircle(cx, cy, 4.8f * d, fill)
-                shaded.shader = RadialGradient(cx - d, cy - d, 4.2f * d, 0xFFFFF6D0.toInt(), 0xFFF2C46A.toInt(), Shader.TileMode.CLAMP)
-                canvas.drawCircle(cx, cy, 3.9f * d, shaded)
+                canvas.drawCircle(cx, cy, 3.9f * d, radial(cx - d, cy - d, 4.2f * d, 0xFFFFF6D0.toInt(), 0xFFF2C46A.toInt()))
                 fill.color = 0xB3FFFFFF.toInt()
                 canvas.drawCircle(cx - 1.4f * d, cy - 1.4f * d, 1.1f * d, fill)
             }
@@ -1041,7 +1062,9 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         path.lineTo(3 * d, -10 * d)
         path.lineTo(4 * d, 0f)
         path.close()
-        shaded.shader = LinearGradient(-9 * d, 0f, 9 * d, 0f, intArrayOf(0xFF18171C.toInt(), 0xFF5A5862.toInt(), 0xFF18171C.toInt()), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP)
+        shaded.shader = gradientCache.getOrPut(0x57AC4L) {
+            LinearGradient(-9 * d, 0f, 9 * d, 0f, intArrayOf(0xFF18171C.toInt(), 0xFF5A5862.toInt(), 0xFF18171C.toInt()), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP)
+        }
         canvas.drawPath(path, shaded)
         outlinePaint.strokeWidth = 0.9f * d
         canvas.drawPath(path, outlinePaint)
@@ -1064,8 +1087,10 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
 
     private fun drawHeadlamp(canvas: Canvas, x: Float, y: Float, t: Float, radius: Float) {
         val flicker = 0.85f + sin(t * 23f) * 0.08f + sin(t * 7f) * 0.07f
-        shaded.shader = RadialGradient(x, y, radius * 3.6f, (((0.65f * flicker) * 255).toInt() shl 24) or 0xFFE48A, 0x00FFE48A, Shader.TileMode.CLAMP)
-        canvas.drawCircle(x, y, radius * 3.6f, shaded)
+        val glow = radial(x, y, radius * 3.6f, 0xFFFFE48A.toInt(), 0x00FFE48A)
+        glow.alpha = (0.65f * flicker * 255).toInt().coerceIn(0, 255)
+        canvas.drawCircle(x, y, radius * 3.6f, glow)
+        glow.alpha = 255
         fill.color = GOLD
         canvas.drawCircle(x, y, radius, fill)
         fill.color = 0xFFFFF6D0.toInt()
