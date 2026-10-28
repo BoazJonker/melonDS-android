@@ -35,6 +35,10 @@ class VirtualStylus {
         const val RUN_EXTRA_DISTANCE = 56f
 
         const val GESTURE_STEP_MS = 16L
+
+        // Each tap of the roll's double tap is held for a few frames, with a short gap in between, so the game sees two separate quick taps
+        const val ROLL_TAP_STEPS = 3
+        const val ROLL_TAP_GAP_STEPS = 3
     }
 
     var inputListener: IInputListener? = null
@@ -123,16 +127,13 @@ class VirtualStylus {
     }
 
     /**
-     * Rolls by drawing a small circle near the edge of the screen, in the facing direction.
+     * Rolls by quickly tapping twice in the facing direction, which makes Link roll that way. Both taps are performed with one press of the button.
      */
     fun roll() {
-        val centerX = (LINK_X + facingX * 100f).coerceIn(14f, SCREEN_WIDTH - 14f)
-        val centerY = (LINK_Y + facingY * 100f).coerceIn(14f, SCREEN_HEIGHT - 14f)
-        val points = (0..10).map {
-            val angle = it / 10f * 2f * PI.toFloat()
-            centerX + cos(angle) * 9f to centerY + sin(angle) * 9f
-        }
-        performGesture(points)
+        val targetX = (LINK_X + facingX * 70f).coerceIn(8f, SCREEN_WIDTH - 8f)
+        val targetY = (LINK_Y + facingY * 70f).coerceIn(8f, SCREEN_HEIGHT - 8f)
+        val tap = List(ROLL_TAP_STEPS) { targetX to targetY }
+        performStrokes(listOf(tap, tap), gapSteps = ROLL_TAP_GAP_STEPS)
     }
 
     /**
@@ -155,6 +156,13 @@ class VirtualStylus {
     }
 
     private fun performGesture(points: List<Pair<Float, Float>>) {
+        performStrokes(listOf(points), gapSteps = 0)
+    }
+
+    /**
+     * Performs one or more stylus strokes, one point per frame, lifting the stylus for [gapSteps] frames between strokes.
+     */
+    private fun performStrokes(strokes: List<List<Pair<Float, Float>>>, gapSteps: Int) {
         if (isRealTouchActive) {
             return
         }
@@ -164,15 +172,23 @@ class VirtualStylus {
         // Lift the stylus first so that the game sees a new touch
         releaseTouch()
 
-        points.forEachIndexed { index, (x, y) ->
-            HandlerCompat.postDelayed(handler, { touchAt(x, y) }, gestureToken, (index + 1) * GESTURE_STEP_MS)
+        var step = 1L
+        strokes.forEachIndexed { strokeIndex, points ->
+            if (strokeIndex > 0) {
+                HandlerCompat.postDelayed(handler, { releaseTouch() }, gestureToken, step * GESTURE_STEP_MS)
+                step += gapSteps
+            }
+            points.forEach { (x, y) ->
+                HandlerCompat.postDelayed(handler, { touchAt(x, y) }, gestureToken, step * GESTURE_STEP_MS)
+                step++
+            }
         }
         HandlerCompat.postDelayed(handler, {
             releaseTouch()
             isGestureRunning = false
             // Continue walking if the stick is still held
             HandlerCompat.postDelayed(handler, { applyStick() }, gestureToken, GESTURE_STEP_MS)
-        }, gestureToken, (points.size + 2) * GESTURE_STEP_MS)
+        }, gestureToken, (step + 1) * GESTURE_STEP_MS)
     }
 
     private fun cancelGesture() {
