@@ -10,7 +10,7 @@
             app:iconSpaceReserved="false"
             android:entries="@array/video_renderer_options"
             android:entryValues="@array/video_renderer_values"
-            android:defaultValue="software"/>
+            android:defaultValue="opengl"/>
 
     <ListPreference
             android:key="video_internal_resolution"
@@ -19,7 +19,7 @@
             app:iconSpaceReserved="false"
             android:entries="@array/video_internal_resolution_options"
             android:entryValues="@array/video_internal_resolution_values"
-            android:defaultValue="1"/>
+            android:defaultValue="4"/>
 
     <SwitchPreference
             android:key="enable_threaded_rendering"
@@ -35,7 +35,16 @@
             app:iconSpaceReserved="false"
             android:entries="@array/video_filtering_options"
             android:entryValues="@array/video_filtering_values"
-            android:defaultValue="none"/>
+            android:defaultValue="quilez"/>
+
+    <ListPreference
+            android:key="video_screen_fit"
+            android:title="@string/screen_fit"
+            android:summary="%s"
+            app:iconSpaceReserved="false"
+            android:entries="@array/video_screen_fit_options"
+            android:entryValues="@array/video_screen_fit_values"
+            android:defaultValue="fit_equal"/>
 
     <ListPreference
             android:key="fps_counter_position"

@@ -1,0 +1,71 @@
+name: Build melonDS HD APK
+
+on:
+  push:
+    branches: [ '**' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: zulu
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare signing key
+        env:
+          MELONDS_KEYSTORE: ${{ secrets.MELONDS_KEYSTORE }}
+          MELONDS_KEYSTORE_PASSWORD: ${{ secrets.MELONDS_KEYSTORE_PASSWORD }}
+        run: |
+          KEYSTORE="${{ runner.temp }}/keystore.jks"
+          if [ -n "$MELONDS_KEYSTORE" ]; then
+            echo "$MELONDS_KEYSTORE" | base64 -d > "$KEYSTORE"
+            PASSWORD="$MELONDS_KEYSTORE_PASSWORD"
+          else
+            # No signing secret configured: generate a throwaway key so the APK can still be installed.
+            # Add MELONDS_KEYSTORE/MELONDS_KEYSTORE_PASSWORD secrets to keep the same key across builds (needed to update in place).
+            PASSWORD="melondshd"
+            keytool -genkeypair -keystore "$KEYSTORE" -storepass "$PASSWORD" -keypass "$PASSWORD" \
+              -alias melonds -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=melonDS HD"
+          fi
+          echo "MELONDS_KEYSTORE=$KEYSTORE" >> local.properties
+          echo "MELONDS_KEYSTORE_PASSWORD=$PASSWORD" >> local.properties
+          echo "MELONDS_KEY_ALIAS=melonds" >> local.properties
+          echo "MELONDS_KEY_PASSWORD=$PASSWORD" >> local.properties
+
+      - name: Build APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleGitHubProdRelease
+          cp app/build/outputs/apk/gitHubProd/release/app-gitHub-prod-release.apk melonDS-HD.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: melonDS-HD
+          path: melonDS-HD.apk
+
+      - name: Publish release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          removeArtifacts: true
+          tag: melonds-hd-latest
+          commit: ${{ github.sha }}
+          name: 'melonDS HD (latest build)'
+          body: 'melonDS with HD defaults (OpenGL, 4x internal resolution, Quilez filter) and a Screen fit option under Settings > Video.'
+          artifacts: melonDS-HD.apk
+          artifactContentType: application/vnd.android.package-archive

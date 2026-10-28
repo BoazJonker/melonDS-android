@@ -56,6 +56,13 @@
         <item>lcd</item>
     </string-array>
 
+    <string-array name="video_screen_fit_values">
+        <item>original</item>
+        <item>fit_equal</item>
+        <item>fit_bottom_focus</item>
+        <item>stretch</item>
+    </string-array>
+
     <string-array name="dsi_camera_source_values">
         <item>black_screen</item>
         <item>physical_cameras</item>

@@ -1,6 +1,7 @@
 package me.magnum.melonds.impl.layout
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.view.WindowInsets
 import android.view.WindowManager
@@ -25,7 +26,20 @@ import kotlin.math.roundToInt
 class DefaultLayoutProvider(
     private val context: Context,
     private val screenUnitsConverter: ScreenUnitsConverter,
+    private val sharedPreferences: SharedPreferences,
 ) {
+
+    private enum class ScreenFit {
+        ORIGINAL,
+        FIT_EQUAL,
+        FIT_BOTTOM_FOCUS,
+        STRETCH,
+    }
+
+    private fun getScreenFit(): ScreenFit {
+        val value = sharedPreferences.getString("video_screen_fit", "fit_equal") ?: "fit_equal"
+        return ScreenFit.entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: ScreenFit.FIT_EQUAL
+    }
 
     fun buildDefaultLayout(variant: UILayoutVariant): UILayout {
         val width = variant.uiSize.x
@@ -117,7 +131,10 @@ class DefaultLayoutProvider(
 
         val screenComponents = if (singleScreenComponent == null) {
             var screenMargin = 0
-            if (screenHeight * 2 > safeHeight) {
+            if (getScreenFit() == ScreenFit.STRETCH) {
+                // Each screen takes the full width and half of the available height, ignoring the console's aspect ratio
+                screenHeight = safeHeight / 2
+            } else if (screenHeight * 2 > safeHeight) {
                 screenWidth = (safeHeight / 2 * consoleAspectRatio).toInt()
                 screenHeight = safeHeight / 2
                 screenMargin = (safeWidth - screenWidth) / 2
@@ -180,17 +197,7 @@ class DefaultLayoutProvider(
         val spacing4dp = screenUnitsConverter.dpToPixels(4f).toInt()
 
         val screenComponents = if (singleScreenComponent == null) {
-            var topScreenWidth = (safeWidth * 0.66f).roundToInt()
-            var topScreenHeight = (topScreenWidth / consoleAspectRatio).toInt()
-            if (topScreenHeight > safeHeight) {
-                topScreenWidth = (safeHeight * consoleAspectRatio).toInt()
-                topScreenHeight = safeHeight
-            }
-
-            val topScreenView = Rect(safeLeft, safeTop, topScreenWidth, topScreenHeight)
-            val bottomScreenWidth = safeWidth - topScreenWidth
-            val bottomScreenHeight = (bottomScreenWidth / consoleAspectRatio).toInt()
-            val bottomScreenView = Rect(safeLeft + topScreenWidth, safeTop, bottomScreenWidth, bottomScreenHeight)
+            val (topScreenView, bottomScreenView) = buildLandscapeScreenRects(safeLeft, safeTop, safeWidth, safeHeight)
 
             arrayOf(
                 PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN),
@@ -220,6 +227,68 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(Rect(width / 2 + smallButtonsSize + (spacing4dp * 1.5).toInt(), safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE),
             )
         )
+    }
+
+    /**
+     * Calculates the positions of the top and bottom screens for a landscape layout with both screens side-by-side, according to the user's screen fit preference.
+     */
+    private fun buildLandscapeScreenRects(safeLeft: Int, safeTop: Int, safeWidth: Int, safeHeight: Int): Pair<Rect, Rect> {
+        return when (getScreenFit()) {
+            ScreenFit.ORIGINAL -> {
+                var topScreenWidth = (safeWidth * 0.66f).roundToInt()
+                var topScreenHeight = (topScreenWidth / consoleAspectRatio).toInt()
+                if (topScreenHeight > safeHeight) {
+                    topScreenWidth = (safeHeight * consoleAspectRatio).toInt()
+                    topScreenHeight = safeHeight
+                }
+
+                val bottomScreenWidth = safeWidth - topScreenWidth
+                val bottomScreenHeight = (bottomScreenWidth / consoleAspectRatio).toInt()
+                Rect(safeLeft, safeTop, topScreenWidth, topScreenHeight) to Rect(safeLeft + topScreenWidth, safeTop, bottomScreenWidth, bottomScreenHeight)
+            }
+            ScreenFit.FIT_EQUAL -> {
+                // Both screens with the same size, as large as possible, centered in the available area
+                var screenWidth = safeWidth / 2
+                var screenHeight = (screenWidth / consoleAspectRatio).toInt()
+                if (screenHeight > safeHeight) {
+                    screenHeight = safeHeight
+                    screenWidth = (safeHeight * consoleAspectRatio).toInt()
+                }
+
+                val marginX = (safeWidth - screenWidth * 2) / 2
+                val marginY = (safeHeight - screenHeight) / 2
+                val left = safeLeft + marginX
+                val top = safeTop + marginY
+                Rect(left, top, screenWidth, screenHeight) to Rect(left + screenWidth, top, screenWidth, screenHeight)
+            }
+            ScreenFit.FIT_BOTTOM_FOCUS -> {
+                // The bottom (touch) screen takes the full height, and the top screen uses the remaining width
+                var bottomScreenHeight = safeHeight
+                var bottomScreenWidth = (safeHeight * consoleAspectRatio).toInt()
+                val maxBottomScreenWidth = (safeWidth * 0.7f).roundToInt()
+                if (bottomScreenWidth > maxBottomScreenWidth) {
+                    bottomScreenWidth = maxBottomScreenWidth
+                    bottomScreenHeight = (bottomScreenWidth / consoleAspectRatio).toInt()
+                }
+
+                var topScreenWidth = safeWidth - bottomScreenWidth
+                var topScreenHeight = (topScreenWidth / consoleAspectRatio).toInt()
+                if (topScreenHeight > safeHeight) {
+                    topScreenHeight = safeHeight
+                    topScreenWidth = (safeHeight * consoleAspectRatio).toInt()
+                }
+
+                val marginX = (safeWidth - topScreenWidth - bottomScreenWidth) / 2
+                val left = safeLeft + marginX
+                val bottomTop = safeTop + (safeHeight - bottomScreenHeight) / 2
+                Rect(left, safeTop, topScreenWidth, topScreenHeight) to Rect(left + topScreenWidth, bottomTop, bottomScreenWidth, bottomScreenHeight)
+            }
+            ScreenFit.STRETCH -> {
+                // Each screen takes half of the available area, ignoring the console's aspect ratio
+                val screenWidth = safeWidth / 2
+                Rect(safeLeft, safeTop, screenWidth, safeHeight) to Rect(safeLeft + screenWidth, safeTop, safeWidth - screenWidth, safeHeight)
+            }
+        }
     }
 
     /**
