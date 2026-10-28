@@ -702,4 +702,23 @@
     <string name="multiplayer_error_discovery_failed">Discovery failed</string>
     <string name="multiplayer_error_lan_init_failed">Failed to initialize LAN session</string>
     <string name="multiplayer_error_permission_denied">Required permissions not granted</string>
+    <!-- Start screen -->
+    <string name="home_title_series" translatable="false">THE LEGEND OF ZELDA</string>
+    <string name="home_title_game" translatable="false">Spirit Tracks</string>
+    <string name="home_title_hd" translatable="false">HD</string>
+    <string name="home_choose_game">Choose game folder</string>
+    <string name="home_choose_game_note">Pick the folder that holds your own copy of The Legend of Zelda: Spirit Tracks (.nds). Other games can\'t be used. Your save file is kept in that folder, so it\'s safe when the app is reinstalled.</string>
+    <string name="home_looking_for_game">Looking for Spirit Tracks…</string>
+    <string name="home_your_adventure">YOUR ADVENTURE</string>
+    <string name="home_last_played">Last played: %1$s</string>
+    <string name="home_today_at">today, %1$s</string>
+    <string name="home_never_played">not yet</string>
+    <string name="home_play_time">Play time: %1$s</string>
+    <string name="home_play">Play</string>
+    <string name="home_settings">Settings</string>
+    <string name="home_change_game">Change folder</string>
+    <string name="home_not_spirit_tracks_title">That\'s not Spirit Tracks!</string>
+    <string name="home_not_spirit_tracks_message">This folder doesn\'t hold Spirit Tracks. Please choose the folder with your copy of The Legend of Zelda: Spirit Tracks (.nds).</string>
+    <string name="home_no_access_title">Can\'t open that folder</string>
+    <string name="home_no_access_message">The app isn\'t allowed to use this folder. Please choose a folder on your phone\'s storage or SD card, such as Downloads or Documents.</string>
 </resources>

@@ -13,11 +13,11 @@
             android:defaultValue="light" />
 
     <SwitchPreference
-            android:key="launch_last_game_on_startup"
+            android:key="skip_start_screen"
             android:title="@string/launch_last_game_on_startup"
             android:summary="@string/launch_last_game_on_startup_summary"
             app:iconSpaceReserved="false"
-            android:defaultValue="true" />
+            android:defaultValue="false" />
 
     <ListPreference
             android:key="fast_forward_speed_multiplier"

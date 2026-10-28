@@ -130,6 +130,7 @@ class EmulatorViewModel @Inject constructor(
         // A slowdown within this much play time means the resolution is too high for the device, rather than the device getting warm
         const val AUTO_RESOLUTION_EARLY_PLAY_TIME_MS = 180_000L
         const val MIN_AUTO_RESOLUTION_SCALE = 1
+        const val SPIRIT_TRACKS_GAME_CODE = "BKI"
     }
 
     private val sessionCoroutineScope = EmulatorSessionCoroutineScope()
@@ -259,6 +260,11 @@ class EmulatorViewModel @Inject constructor(
     }
 
     private suspend fun launchRom(rom: Rom) = coroutineScope {
+        // This build only plays The Legend of Zelda: Spirit Tracks (game codes BKIE, BKIP, BKIJ...)
+        if (getRomInfo(rom)?.gameCode?.startsWith(SPIRIT_TRACKS_GAME_CODE) != true) {
+            _emulatorState.value = EmulatorState.RomLoadError
+            return@coroutineScope
+        }
         prepareAutoResolution()
         startEmulatorSession(EmulatorSession.SessionType.RomSession(rom))
         startObservingMainScreenBackground()

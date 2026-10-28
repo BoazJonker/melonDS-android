@@ -11,4 +11,9 @@
     <color name="stGold">#E2B54A</color>
     <color name="stGoldDark">#9A6416</color>
     <color name="stFrame">#8A6238</color>
+    <!-- Night sky of the start screen and the app icon -->
+    <color name="stNight">#0B1B36</color>
+    <color name="stNightLight">#244C78</color>
+    <color name="stIconBackground">#11284A</color>
+    <color name="stSpirit">#9FE6FF</color>
 </resources>
