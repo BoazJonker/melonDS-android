@@ -2,6 +2,7 @@
 #include "types.h"
 #include "Platform.h"
 #include "SPU.h"
+#include <algorithm>
 
 using namespace melonDS;
 
@@ -46,10 +47,23 @@ OboeCallback::onAudioReady(oboe::AudioStream *stream, void *audioData, int32_t n
 
     if (num_in < len_in)
     {
-        int last = num_in - 1;
-
-        for (int i = num_in; i < len_in; i++)
-            ((u32*)audioData)[i] = ((u32*)audioData)[last];
+        // The emulator is running slower than real time, so there are fewer samples than needed. Stretch the samples received over the whole buffer, so
+        // that the sound plays a little slower but stays smooth, instead of repeating the last sample (which sounds like stuttering)
+        s16* samples = (s16*) audioData;
+        stretchBuffer.assign(samples, samples + num_in * 2);
+        for (int i = 0; i < len_in; i++)
+        {
+            float position = (float) i * (float) (num_in - 1) / (float) std::max(len_in - 1, 1);
+            int index = (int) position;
+            int nextIndex = std::min(index + 1, num_in - 1);
+            float fraction = position - (float) index;
+            for (int channel = 0; channel < 2; channel++)
+            {
+                float a = stretchBuffer[index * 2 + channel];
+                float b = stretchBuffer[nextIndex * 2 + channel];
+                samples[i * 2 + channel] = (s16) (a + (b - a) * fraction);
+            }
+        }
     }
 
     if (_recordingStream) [[unlikely]]
