@@ -86,4 +86,44 @@ open class LayoutView(context: Context, attrs: AttributeSet?) : FrameLayout(cont
 
     protected open fun onLayoutComponentViewAdded(layoutComponentView: LayoutComponentView) {
     }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        keepControlsOnScreen()
+    }
+
+    /**
+     * Moves any control that would stick out past an edge of this view back inside it, with a small margin. This keeps the controls whole when the view is
+     * smaller than the size the layout was made for (for example because of system bars or rounded screen corners).
+     */
+    private fun keepControlsOnScreen() {
+        if (width <= 0 || height <= 0) {
+            return
+        }
+        val margin = (4 * resources.displayMetrics.density).toInt()
+        var moved = false
+        views.values.forEach { componentView ->
+            if (componentView.component.isScreen()) {
+                return@forEach
+            }
+            val view = componentView.view
+            val params = view.layoutParams as? LayoutParams ?: return@forEach
+            if (view.width <= 0 || view.height <= 0 || view.width > width || view.height > height) {
+                return@forEach
+            }
+            val maxLeft = maxOf(0, width - view.width - margin)
+            val maxTop = maxOf(0, height - view.height - margin)
+            val newLeft = params.leftMargin.coerceIn(minOf(margin, maxLeft), maxLeft)
+            val newTop = params.topMargin.coerceIn(minOf(margin, maxTop), maxTop)
+            if (newLeft != params.leftMargin || newTop != params.topMargin) {
+                params.leftMargin = newLeft
+                params.topMargin = newTop
+                moved = true
+            }
+        }
+        if (moved) {
+            // Apply the new positions in the next layout pass
+            post { requestLayout() }
+        }
+    }
 }
