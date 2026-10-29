@@ -58,6 +58,11 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
     var onMiniScreenPressedChanged: ((isPressed: Boolean) -> Unit)? = null
 
     /**
+     * Called when the player starts touching the DS touch screen.
+     */
+    var onTouchScreenTouched: (() -> Unit)? = null
+
+    /**
      * Called when the player starts or stops holding the Blow button.
      */
     var onBlowChanged: ((isBlowing: Boolean) -> Unit)? = null
@@ -241,7 +246,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             // screen receives the touch input
             val mainShowsTouchScreen = mainScreenView.component == touchScreenComponent
             val mainScreenHandler = if (mainShowsTouchScreen || forwardTouchesWhenSwapped) {
-                systemInputHandler?.let { TouchscreenInputHandler(it, virtualStylus) }
+                systemInputHandler?.let { TouchscreenInputHandler(it, virtualStylus) { onTouchScreenTouched?.invoke() } }
             } else {
                 null
             }
@@ -262,7 +267,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         }
 
         systemInputHandler?.let {
-            getLayoutComponentView(touchScreenComponent)?.view?.setOnTouchListener(TouchscreenInputHandler(it, virtualStylus))
+            getLayoutComponentView(touchScreenComponent)?.view?.setOnTouchListener(TouchscreenInputHandler(it, virtualStylus) { onTouchScreenTouched?.invoke() })
         }
         getLayoutComponentView(nonTouchScreenComponent)?.view?.setOnTouchListener(null)
     }

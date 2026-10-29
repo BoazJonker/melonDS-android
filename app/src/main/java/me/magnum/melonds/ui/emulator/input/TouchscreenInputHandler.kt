@@ -11,14 +11,20 @@ import me.magnum.melonds.domain.model.Point
 /**
  * @param virtualStylus When the stick control style is used, real touches are reported to it so that real touches take priority over the stick and action
  * buttons
+ * @param onTouchStarted Called when the player starts touching the screen
  */
-class TouchscreenInputHandler(inputListener: IInputListener, private val virtualStylus: VirtualStylus? = null) : BaseInputHandler(inputListener) {
+class TouchscreenInputHandler(
+    inputListener: IInputListener,
+    private val virtualStylus: VirtualStylus? = null,
+    private val onTouchStarted: (() -> Unit)? = null,
+) : BaseInputHandler(inputListener) {
     private val touchPoint: Point = Point()
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                onTouchStarted?.invoke()
                 virtualStylus?.onRealTouchStarted()
                 inputListener.onKeyPress(Input.TOUCHSCREEN)
                 inputListener.onTouch(normalizeTouchCoordinates(event, v.width, v.height))

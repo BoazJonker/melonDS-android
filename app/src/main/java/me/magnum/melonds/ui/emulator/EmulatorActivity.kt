@@ -372,6 +372,8 @@ class EmulatorActivity : AppCompatActivity() {
         binding.viewLayoutControls.onMiniScreenPressedChanged = { isPressed -> onMiniScreenPressedChanged(isPressed) }
         binding.viewLayoutControls.onMiniScreenPulled = { setMiniScreenHidden(true) }
         binding.viewLayoutControls.onBlowChanged = { isBlowing -> MelonEmulator.setMicBlowing(isBlowing) }
+        // Touching the touch screen means the player is in a menu or playing, not watching a cutscene
+        binding.viewLayoutControls.onTouchScreenTouched = { cutsceneDetector.onPlayerTouchedScreen() }
         binding.viewMiniScreenTab.setOnTouchListener { _, event ->
             // Any tap or swipe on the tab brings the window back
             if (event.actionMasked == MotionEvent.ACTION_UP) {
