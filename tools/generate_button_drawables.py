@@ -4,15 +4,16 @@ Generates the Spirit Tracks styled on-screen button drawables (Android vectors) 
 
 Buttons are 3D: a wooden socket with the gold side of the cap showing (the "base" drawables), and a raised cap on top (the button drawables themselves).
 When a button is pressed, the app moves the cap down into the socket. Everything is drawn from shapes, without game assets."""
-import os, sys
+import math, os, sys
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 
 OUT_RES, OUT_PREVIEW = sys.argv[1], sys.argv[2]
-FONT = TTFont('/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf')
+# Almendra (SIL Open Font License, see fonts/OFL.txt): a storybook style font, also used by the app's start screen
+FONT = TTFont(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts', 'Almendra-Bold.ttf'))
 GLYPHS, CMAP = FONT.getGlyphSet(), FONT.getBestCmap()
-CAP = getattr(FONT['OS/2'], 'sCapHeight', 0) or 1493
+CAP = getattr(FONT['OS/2'], 'sCapHeight', 0) or 666
 
 INK = '#FF3A2614'
 SHADOW = '#4D000000'
@@ -158,6 +159,24 @@ BLOW_ICON = [
     ('M64,40h10', None, INK, 4),
 ]
 
+def gear_path(cx, cy, outer, inner, teeth=8):
+    points = []
+    for i in range(teeth * 4):
+        angle = math.pi * 2 * i / (teeth * 4) - math.pi / 2
+        r = outer if i % 4 in (1, 2) else inner
+        points.append(f'{cx + math.cos(angle) * r:.2f},{cy + math.sin(angle) * r:.2f}')
+    return 'M' + 'L'.join(points) + 'Z'
+
+
+SETTINGS_ICON = [
+    (gear_path(50, DISK_CAP_Y, 21, 15.5), INK),
+    (circle(50, DISK_CAP_Y, 7), '#FFF3E6C4', INK, 3),
+]
+FOLDER_ICON = [
+    ('M28,37h14l4,5h23a3,3 0 0 1 3,3v17a3,3 0 0 1 -3,3h-38a3,3 0 0 1 -3,-3z', '#FFE2B54A', INK, 3.2),
+    ('M28,47h44', None, INK, 2.6),
+]
+
 # --- Plank buttons (L/R/Start/Select): socket at y 28..70, cap at y 28..61. Pressing moves the cap down by PLANK_PRESS_DEPTH ---
 PLANK_TOP = 28
 
@@ -229,6 +248,8 @@ DRAWABLES = {
     'st_action_item': disk_cap(ITEM_ICON),
     'st_swap_screens': disk_cap(SWAP_ICON),
     'st_blow': disk_cap(BLOW_ICON),
+    'st_home_settings': disk_cap(SETTINGS_ICON),
+    'st_home_folder': disk_cap(FOLDER_ICON),
     # Full round button (socket + cap), used as the backing of the small utility buttons
     'st_button_round': disk_base() + disk_cap([]),
 }

@@ -13,6 +13,7 @@ import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import me.magnum.melonds.R
 import me.magnum.melonds.domain.model.Input
 import kotlin.math.hypot
@@ -88,7 +89,7 @@ class AnimatedFaceButtonsView(
     }
     private val labelTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFF3A2614.toInt()
-        typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        typeface = runCatching { ResourcesCompat.getFont(context, R.font.almendra_bold) }.getOrNull() ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
     }
     private val labelBackgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

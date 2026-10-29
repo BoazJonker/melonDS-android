@@ -25,7 +25,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:fontFamily="serif"
+                android:fontFamily="@font/almendra_bold"
                 android:textStyle="bold"
                 android:textSize="16sp"
                 android:textColor="@color/stInk"
