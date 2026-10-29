@@ -52,8 +52,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     }
 
     private companion object {
-        // Redraw at roughly 20 FPS. The scene moves slowly, so this is smooth enough and keeps the cost low while the game runs
-        const val FRAME_INTERVAL_MS = 50L
+        // Redraw at roughly 15 FPS. The scene moves slowly, so this is smooth enough and keeps the cost low while the game runs
+        const val FRAME_INTERVAL_MS = 66L
         const val TAU = (2 * PI).toFloat()
 
         // Speed at which the world scrolls past the train, at the track's depth

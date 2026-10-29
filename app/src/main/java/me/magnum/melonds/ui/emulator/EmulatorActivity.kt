@@ -1067,6 +1067,8 @@ class EmulatorActivity : AppCompatActivity() {
             swapScreen()
             binding.viewLayoutControls.setControlsFaded(true)
             updateMiniScreenAlpha()
+            // Pause the background while the cutscene fills the screen, so the game gets the phone's full graphics power for these heavy scenes
+            binding.viewAnimatedBackground.stopAnimation()
         } else if (!isCutscene && isCutsceneSwapped) {
             isCutsceneSwapped = false
             binding.viewLayoutControls.forwardTouchesWhenSwapped = false
@@ -1075,6 +1077,7 @@ class EmulatorActivity : AppCompatActivity() {
             }
             binding.viewLayoutControls.setControlsFaded(false)
             updateMiniScreenAlpha()
+            updateAnimatedBackground()
         }
     }
 
@@ -1115,6 +1118,7 @@ class EmulatorActivity : AppCompatActivity() {
             isCutsceneSwapped = false
             binding.viewLayoutControls.forwardTouchesWhenSwapped = false
             binding.viewLayoutControls.setControlsFaded(false)
+            updateAnimatedBackground()
         }
         swapScreen()
         updateMiniScreenAlpha()
@@ -1329,7 +1333,7 @@ class EmulatorActivity : AppCompatActivity() {
             else -> SpiritTracksBackgroundView.TrainStyle.SPIRIT
         }
         binding.viewAnimatedBackground.isSceneEnabled = isEnabled
-        if (isEnabled) {
+        if (isEnabled && !isCutsceneSwapped) {
             binding.viewAnimatedBackground.startAnimation()
         } else {
             binding.viewAnimatedBackground.stopAnimation()
