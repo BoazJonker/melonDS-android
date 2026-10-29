@@ -13,3 +13,6 @@
 [submodule "app/src/main/cpp/enet"]
     path = app/src/main/cpp/enet
     url = https://github.com/lsalzman/enet.git
+[submodule "unbound/app/src/main/cpp/mgba"]
+	path = unbound/app/src/main/cpp/mgba
+	url = https://github.com/mgba-emu/mgba.git

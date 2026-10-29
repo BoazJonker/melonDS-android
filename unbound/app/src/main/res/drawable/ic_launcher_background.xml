@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="108">
+                <item android:offset="0" android:color="#FF0B0820" />
+                <item android:offset="0.6" android:color="#FF2A1A5E" />
+                <item android:offset="1" android:color="#FF4A2A7A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Aurora -->
+    <path android:pathData="M0,30C20,18 40,40 60,28S95,20 108,30L108,44C90,36 70,50 50,42S15,40 0,48Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="20" android:endX="0" android:endY="48">
+                <item android:offset="0" android:color="#0046F0C8" />
+                <item android:offset="0.6" android:color="#5546F0C8" />
+                <item android:offset="1" android:color="#0046F0C8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Stars -->
+    <path android:fillColor="#FFF8F6FF" android:pathData="M20,20m-1,0a1,1 0 1,0 2,0a1,1 0 1,0 -2,0" />
+    <path android:fillColor="#CCF8F6FF" android:pathData="M86,16m-0.8,0a0.8,0.8 0 1,0 1.6,0a0.8,0.8 0 1,0 -1.6,0" />
+    <path android:fillColor="#CCF8F6FF" android:pathData="M30,84m-0.7,0a0.7,0.7 0 1,0 1.4,0a0.7,0.7 0 1,0 -1.4,0" />
+    <path android:fillColor="#FFF8F6FF" android:pathData="M90,78m-0.9,0a0.9,0.9 0 1,0 1.8,0a0.9,0.9 0 1,0 -1.8,0" />
+    <!-- Mountains -->
+    <path android:fillColor="#FF140C30" android:pathData="M0,108L0,90L16,78L28,88L44,72L60,90L74,80L90,92L108,82L108,108Z" />
+</vector>

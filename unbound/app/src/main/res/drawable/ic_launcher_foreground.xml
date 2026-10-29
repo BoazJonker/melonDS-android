@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Glow -->
+    <path android:pathData="M54,54m-34,0a34,34 0 1,0 68,0a34,34 0 1,0 -68,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="54" android:centerY="54" android:gradientRadius="34">
+                <item android:offset="0.7" android:color="#669C7BFF" />
+                <item android:offset="1" android:color="#009C7BFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Gold ring -->
+    <path android:pathData="M54,54m-26,0a26,26 0 1,0 52,0a26,26 0 1,0 -52,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="28" android:endX="0" android:endY="80">
+                <item android:offset="0" android:color="#FFFFEDB0" />
+                <item android:offset="0.45" android:color="#FFF2C14E" />
+                <item android:offset="1" android:color="#FF8C5E10" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Top half: violet -->
+    <path android:pathData="M31.5,54A22.5,22.5 0 0,1 76.5,54Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="46" android:centerY="38" android:gradientRadius="30">
+                <item android:offset="0" android:color="#FFB79CFF" />
+                <item android:offset="1" android:color="#FF3A1F8A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Bottom half: white -->
+    <path android:pathData="M31.5,54A22.5,22.5 0 0,0 76.5,54Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="48" android:centerY="56" android:gradientRadius="26">
+                <item android:offset="0" android:color="#FFF8F6FF" />
+                <item android:offset="1" android:color="#FFB9B1D3" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Band and button -->
+    <path android:fillColor="#FF140F22" android:pathData="M31.5,52h45v4h-45z" />
+    <path android:fillColor="#FF140F22" android:pathData="M54,54m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path android:pathData="M54,54m-5.5,0a5.5,5.5 0 1,0 11,0a5.5,5.5 0 1,0 -11,0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="53" android:centerY="53" android:gradientRadius="6">
+                <item android:offset="0" android:color="#FFFFEDB0" />
+                <item android:offset="1" android:color="#FFF2C14E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Gloss -->
+    <path android:fillColor="#59FFFFFF" android:pathData="M42,40a12,5 -20 1,0 14,-6a12,5 -20 1,0 -14,6z" />
+    <!-- Sparkles -->
+    <path android:fillColor="#FFFFEDB0" android:pathData="M76,30l1.2,3.6 3.6,1.2 -3.6,1.2 -1.2,3.6 -1.2,-3.6 -3.6,-1.2 3.6,-1.2z" />
+    <path android:fillColor="#FFE3C6FF" android:pathData="M33,72l0.9,2.6 2.6,0.9 -2.6,0.9 -0.9,2.6 -0.9,-2.6 -2.6,-0.9 2.6,-0.9z" />
+</vector>

@@ -1,0 +1,93 @@
+name: Build Pokemon Unbound APK
+
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'unbound/**'
+      - 'gradle/**'
+      - '.github/workflows/build-unbound.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Only build the newest push: an older build finishing later would otherwise replace the APK on the release page with an older version
+concurrency:
+  group: build-unbound-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Pinned: this image ships with the Android SDK preinstalled
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      # Only mGBA is needed, not the melonDS submodules
+      - name: Check out mGBA
+        run: git submodule update --init --depth 1 unbound/app/src/main/cpp/mgba
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: zulu
+          cache: gradle
+
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          # Gradle downloads anything still missing during the build, now that the licenses are accepted
+          "$SDKMANAGER" --install "platforms;android-37" "ndk;28.0.13004108" "cmake;3.22.1" || echo "::warning::Some SDK packages could not be preinstalled"
+
+      - name: Prepare signing key
+        env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          KEYSTORE="${{ runner.temp }}/keystore.jks"
+          if [ -n "$SIGNING_PASSWORD" ]; then
+            # Permanent key, stored encrypted in the repo (the same one as Spirit Tracks HD). Every build is signed with it, so updates install over the previous version
+            if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in .github/signing/release.jks.enc -out "$KEYSTORE" -pass env:SIGNING_PASSWORD; then
+              echo "::error::Could not unlock the signing key. Check that the SIGNING_PASSWORD secret is correct."
+              exit 1
+            fi
+            PASSWORD="$SIGNING_PASSWORD"
+            ALIAS="melonds"
+          else
+            # No SIGNING_PASSWORD secret configured: generate a throwaway key so the APK can still be installed.
+            # Each build then has a different key, so the previous version must be uninstalled before installing a new one.
+            echo "::warning::SIGNING_PASSWORD secret not set. Signing with a throwaway key."
+            PASSWORD="unbound"
+            ALIAS="unbound"
+            keytool -genkeypair -keystore "$KEYSTORE" -storepass "$PASSWORD" -keypass "$PASSWORD" \
+              -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Pokemon Unbound"
+          fi
+          echo "UNBOUND_KEYSTORE=$KEYSTORE" >> unbound/local.properties
+          echo "UNBOUND_KEYSTORE_PASSWORD=$PASSWORD" >> unbound/local.properties
+          echo "UNBOUND_KEY_ALIAS=$ALIAS" >> unbound/local.properties
+          echo "UNBOUND_KEY_PASSWORD=$PASSWORD" >> unbound/local.properties
+
+      - name: Build APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew -p unbound :app:assembleRelease
+          cp unbound/app/build/outputs/apk/release/app-release.apk Pokemon-Unbound.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pokemon-Unbound
+          path: Pokemon-Unbound.apk
+
+      - name: Publish release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          removeArtifacts: true
+          tag: unbound-latest
+          commit: ${{ github.sha }}
+          name: 'Pokemon Unbound (latest build)'
+          body: 'Pokemon Unbound: a GBA app built on mGBA, with animated 3D buttons, an animated Borrius night sky, quick resume and controller support. Bring your own game file (or FireRed + the Unbound .bps patch).'
+          artifacts: Pokemon-Unbound.apk
+          artifactContentType: application/vnd.android.package-archive
