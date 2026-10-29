@@ -76,8 +76,8 @@ class SharedPreferencesSettingsRepository(
         private const val KEY_BATTERY_SAVER = "battery_saver"
         private const val KEY_QUICK_RESUME_ROM = "quick_resume_rom"
         private const val BATTERY_SAVER_RESOLUTION_SCALE = 2
-        // Versioned so that limits learned with the earlier automatic resolution, which changed resolution much more often, are discarded
-        private const val KEY_AUTO_INTERNAL_RESOLUTION_CEILING = "video_internal_resolution_auto_ceiling_v2"
+        // Versioned so that limits learned by earlier versions of the automatic resolution are discarded. Heavy scenes no longer lower it permanently
+        private const val KEY_AUTO_INTERNAL_RESOLUTION_CEILING = "video_internal_resolution_auto_ceiling_v3"
 
         private const val TAG = "SPSettingsRepository"
         private const val CONTROLLER_CONFIG_FILE = "controller_config.json"

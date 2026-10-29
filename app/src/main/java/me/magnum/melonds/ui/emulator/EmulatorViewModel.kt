@@ -121,19 +121,19 @@ class EmulatorViewModel @Inject constructor(
 
     private companion object {
         const val AUTO_RESOLUTION_SAMPLE_INTERVAL = 1000L
-        const val AUTO_RESOLUTION_SETTLE_TIME_MS = 10_000L
-        // The frame rate must stay low for this many seconds in a row before the resolution is lowered, so short dips don't trigger it
-        const val AUTO_RESOLUTION_AVERAGE_SAMPLES = 15
+        // Changing the resolution rebuilds the renderer, so the frame rate right after a change (or after loading or resuming) is ignored
+        const val AUTO_RESOLUTION_SETTLE_TIME_MS = 8_000L
+        // The frame rate must stay below this for this many seconds before the resolution is lowered
+        const val AUTO_RESOLUTION_SLOW_SAMPLES = 6
         const val AUTO_RESOLUTION_MIN_FPS = 52.0
-        // Lowering the resolution rebuilds the renderer, which briefly freezes the game, so it's done at most this often
-        const val AUTO_RESOLUTION_MIN_STEP_INTERVAL_MS = 180_000L
-        // A slowdown within this much play time means the resolution is too high for the device, rather than the device getting warm
-        const val AUTO_RESOLUTION_EARLY_PLAY_TIME_MS = 180_000L
-        // Early in the game, a slowdown is handled sooner, so that a resolution that's too high for the device doesn't spoil the opening scenes
-        const val AUTO_RESOLUTION_EARLY_AVERAGE_SAMPLES = 6
-        // A severe slowdown (the game clearly running in slow motion) lowers the resolution after a few seconds, even right after an earlier change
-        const val AUTO_RESOLUTION_SEVERE_FPS = 45.0
-        const val AUTO_RESOLUTION_SEVERE_SAMPLES = 4
+        // After lowering the resolution, the frame rate over this many seconds must be at least this much higher, or the change is undone
+        const val AUTO_RESOLUTION_CHECK_SAMPLES = 5
+        const val AUTO_RESOLUTION_MIN_IMPROVEMENT_FPS = 6.0
+        const val AUTO_RESOLUTION_NO_HELP_PAUSE_MS = 120_000L
+        // Going back up: after this long at full speed, and not too soon after a step down that helped
+        const val AUTO_RESOLUTION_FULL_SPEED_FPS = 58.5f
+        const val AUTO_RESOLUTION_FULL_SPEED_TIME_MS = 20_000L
+        const val AUTO_RESOLUTION_STEP_UP_PAUSE_MS = 60_000L
         const val MIN_AUTO_RESOLUTION_SCALE = 1
         const val SPIRIT_TRACKS_GAME_CODE = "BKI"
     }
@@ -513,9 +513,12 @@ class EmulatorViewModel @Inject constructor(
     }
 
     /**
-     * With the automatic internal resolution, the game starts at the resolution that suits the device (see [prepareAutoResolution]) and the resolution never
-     * goes up during play. It only goes down one step when the frame rate stays low for a long time, and at most every few minutes, because each change briefly
-     * freezes the game. A slowdown early in the game lowers the device's limit for next time; a later one is assumed to be the device getting warm.
+     * With the automatic internal resolution, the game starts at the resolution that suits the device (see [prepareAutoResolution]), and adapts to heavy
+     * scenes:
+     * - When the frame rate drops, the resolution goes down one step. Each change briefly freezes the game.
+     * - If that didn't make the game faster (some scenes are slow for reasons the resolution doesn't affect, like 3D shown on both screens), the resolution
+     *   goes straight back up, and isn't lowered again for a while.
+     * - Once the game runs at full speed again for a while, the resolution goes back up step by step, up to the starting resolution.
      */
     private fun startAutoResolution(rom: Rom) {
         if (!settingsRepository.isAutoInternalResolutionEnabled()) {
@@ -524,19 +527,30 @@ class EmulatorViewModel @Inject constructor(
 
         sessionCoroutineScope.launch {
             val recentFps = ArrayDeque<Float>()
+            val startScale = settingsRepository.getAutoInternalResolutionScale()
             var lastChangeTime = SystemClock.uptimeMillis()
-            var lastStepDownTime = 0L
-            var playTime = 0L
+            // After a step down: the previous scale and the frame rate before, to check whether lowering the resolution helped
+            var stepDownCheck: Pair<Int, Double>? = null
+            var noStepDownUntil = 0L
+            var noStepUpUntil = 0L
+            var fullSpeedSince = 0L
+
+            suspend fun changeScale(newScale: Int) {
+                applyAutoResolutionScale(rom, newScale)
+                lastChangeTime = SystemClock.uptimeMillis()
+                recentFps.clear()
+                fullSpeedSince = 0L
+            }
 
             while (isActive) {
                 delay(AUTO_RESOLUTION_SAMPLE_INTERVAL)
                 val now = SystemClock.uptimeMillis()
                 if (isEmulatorPaused || _emulatorState.value !is EmulatorState.RunningRom) {
                     recentFps.clear()
+                    fullSpeedSince = 0L
                     lastChangeTime = maxOf(lastChangeTime, now - AUTO_RESOLUTION_SETTLE_TIME_MS / 2)
                     continue
                 }
-                playTime += AUTO_RESOLUTION_SAMPLE_INTERVAL
                 // Ignore the time right after loading, resuming or changing the resolution
                 if (now - lastChangeTime < AUTO_RESOLUTION_SETTLE_TIME_MS) {
                     recentFps.clear()
@@ -544,25 +558,46 @@ class EmulatorViewModel @Inject constructor(
                 }
 
                 recentFps.addLast(emulatorManager.getFps())
-                if (recentFps.size > AUTO_RESOLUTION_AVERAGE_SAMPLES) {
+                if (recentFps.size > AUTO_RESOLUTION_SLOW_SAMPLES) {
                     recentFps.removeFirst()
                 }
-
                 val scale = settingsRepository.getAutoInternalResolutionScale()
-                val isEarly = playTime < AUTO_RESOLUTION_EARLY_PLAY_TIME_MS && lastStepDownTime == 0L
-                val requiredSamples = if (isEarly) AUTO_RESOLUTION_EARLY_AVERAGE_SAMPLES else AUTO_RESOLUTION_AVERAGE_SAMPLES
-                val isSlow = recentFps.size >= requiredSamples && recentFps.takeLast(requiredSamples).average() < AUTO_RESOLUTION_MIN_FPS
-                val isSeverelySlow = recentFps.size >= AUTO_RESOLUTION_SEVERE_SAMPLES &&
-                        recentFps.takeLast(AUTO_RESOLUTION_SEVERE_SAMPLES).average() < AUTO_RESOLUTION_SEVERE_FPS
-                val canStepDown = isSeverelySlow || lastStepDownTime == 0L || now - lastStepDownTime > AUTO_RESOLUTION_MIN_STEP_INTERVAL_MS
-                if ((isSlow || isSeverelySlow) && canStepDown && scale > MIN_AUTO_RESOLUTION_SCALE) {
-                    if (playTime < AUTO_RESOLUTION_EARLY_PLAY_TIME_MS) {
-                        settingsRepository.setAutoInternalResolutionCeiling(scale - 1)
+
+                val check = stepDownCheck
+                if (check != null) {
+                    if (recentFps.size < AUTO_RESOLUTION_CHECK_SAMPLES) {
+                        continue
                     }
-                    applyAutoResolutionScale(rom, scale - 1)
-                    lastStepDownTime = now
-                    lastChangeTime = now
-                    recentFps.clear()
+                    stepDownCheck = null
+                    val (previousScale, fpsBefore) = check
+                    if (recentFps.average() < fpsBefore + AUTO_RESOLUTION_MIN_IMPROVEMENT_FPS) {
+                        // Lowering the resolution didn't help, so put it back and don't lower it again for a while
+                        noStepDownUntil = now + AUTO_RESOLUTION_NO_HELP_PAUSE_MS
+                        changeScale(previousScale)
+                    } else {
+                        // It helped: stay at this resolution for a while before trying to go back up
+                        noStepUpUntil = now + AUTO_RESOLUTION_STEP_UP_PAUSE_MS
+                    }
+                    continue
+                }
+
+                val isSlow = recentFps.size >= AUTO_RESOLUTION_SLOW_SAMPLES && recentFps.average() < AUTO_RESOLUTION_MIN_FPS
+                if (isSlow && now >= noStepDownUntil && scale > MIN_AUTO_RESOLUTION_SCALE) {
+                    stepDownCheck = scale to recentFps.average()
+                    changeScale(scale - 1)
+                    continue
+                }
+
+                // Back at full speed: go back up step by step, up to the starting resolution
+                if (recentFps.last() >= AUTO_RESOLUTION_FULL_SPEED_FPS) {
+                    if (fullSpeedSince == 0L) {
+                        fullSpeedSince = now
+                    }
+                    if (scale < startScale && now >= noStepUpUntil && now - fullSpeedSince >= AUTO_RESOLUTION_FULL_SPEED_TIME_MS) {
+                        changeScale(scale + 1)
+                    }
+                } else {
+                    fullSpeedSince = 0L
                 }
             }
         }
