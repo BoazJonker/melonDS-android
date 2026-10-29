@@ -10,10 +10,9 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 
 OUT_RES, OUT_PREVIEW = sys.argv[1], sys.argv[2]
-# Almendra (SIL Open Font License, see fonts/OFL.txt): a storybook style font, also used by the app's start screen
-FONT = TTFont(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts', 'Almendra-Bold.ttf'))
+FONT = TTFont('/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf')
 GLYPHS, CMAP = FONT.getGlyphSet(), FONT.getBestCmap()
-CAP = getattr(FONT['OS/2'], 'sCapHeight', 0) or 666
+CAP = getattr(FONT['OS/2'], 'sCapHeight', 0) or 1493
 
 INK = '#FF3A2614'
 SHADOW = '#4D000000'
