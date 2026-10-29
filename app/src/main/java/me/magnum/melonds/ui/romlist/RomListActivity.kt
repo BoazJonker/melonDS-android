@@ -35,7 +35,6 @@ import javax.inject.Inject
 class RomListActivity : AppCompatActivity() {
 
     companion object {
-        // Renamed so that the setting starts off for everyone: it skips the start screen
         private const val KEY_LAUNCH_LAST_GAME_ON_STARTUP = "skip_start_screen"
         private const val KEY_LAST_LAUNCHED_ROM_URI = "last_launched_rom_uri"
     }
@@ -105,12 +104,12 @@ class RomListActivity : AppCompatActivity() {
     }
 
     /**
-     * Launches the last played game straight away so that the app behaves like a standalone game. This activity stays below the emulator so that exiting the game
+     * Once the game has been played from the start screen, every later start of the app goes straight into the game, so that the app behaves like a
+     * standalone game. The start screen is only needed the first time, to find the game. This activity stays below the emulator so that exiting the game
      * (or failing to load it) shows the start screen.
      */
     private fun launchLastGameIfEnabled() {
-        // Off by default: the start screen is shown, and the game starts with one tap on Play
-        if (!sharedPreferences.getBoolean(KEY_LAUNCH_LAST_GAME_ON_STARTUP, false)) {
+        if (!sharedPreferences.getBoolean(KEY_LAUNCH_LAST_GAME_ON_STARTUP, true)) {
             return
         }
 
