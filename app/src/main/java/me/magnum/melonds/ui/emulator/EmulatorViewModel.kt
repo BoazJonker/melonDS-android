@@ -134,6 +134,8 @@ class EmulatorViewModel @Inject constructor(
         const val AUTO_RESOLUTION_FULL_SPEED_FPS = 58.5f
         const val AUTO_RESOLUTION_FULL_SPEED_TIME_MS = 20_000L
         const val AUTO_RESOLUTION_STEP_UP_PAUSE_MS = 60_000L
+        const val AUTO_RESOLUTION_FAILED_STEP_UP_WINDOW_MS = 60_000L
+        const val AUTO_RESOLUTION_MAX_STEP_UP_PAUSE_MS = 480_000L
         const val MIN_AUTO_RESOLUTION_SCALE = 1
         const val SPIRIT_TRACKS_GAME_CODE = "BKI"
     }
@@ -534,6 +536,9 @@ class EmulatorViewModel @Inject constructor(
             var noStepDownUntil = 0L
             var noStepUpUntil = 0L
             var fullSpeedSince = 0L
+            // A step up that's soon followed by a step down means the scene is still heavy: wait twice as long before the next try
+            var lastStepUpTime = 0L
+            var stepUpPause = AUTO_RESOLUTION_STEP_UP_PAUSE_MS
 
             suspend fun changeScale(newScale: Int) {
                 applyAutoResolutionScale(rom, newScale)
@@ -576,13 +581,18 @@ class EmulatorViewModel @Inject constructor(
                         changeScale(previousScale)
                     } else {
                         // It helped: stay at this resolution for a while before trying to go back up
-                        noStepUpUntil = now + AUTO_RESOLUTION_STEP_UP_PAUSE_MS
+                        noStepUpUntil = now + stepUpPause
                     }
                     continue
                 }
 
                 val isSlow = recentFps.size >= AUTO_RESOLUTION_SLOW_SAMPLES && recentFps.average() < AUTO_RESOLUTION_MIN_FPS
                 if (isSlow && now >= noStepDownUntil && scale > MIN_AUTO_RESOLUTION_SCALE) {
+                    stepUpPause = if (lastStepUpTime != 0L && now - lastStepUpTime < AUTO_RESOLUTION_FAILED_STEP_UP_WINDOW_MS) {
+                        (stepUpPause * 2).coerceAtMost(AUTO_RESOLUTION_MAX_STEP_UP_PAUSE_MS)
+                    } else {
+                        AUTO_RESOLUTION_STEP_UP_PAUSE_MS
+                    }
                     stepDownCheck = scale to recentFps.average()
                     changeScale(scale - 1)
                     continue
@@ -595,6 +605,7 @@ class EmulatorViewModel @Inject constructor(
                     }
                     if (scale < startScale && now >= noStepUpUntil && now - fullSpeedSince >= AUTO_RESOLUTION_FULL_SPEED_TIME_MS) {
                         changeScale(scale + 1)
+                        lastStepUpTime = SystemClock.uptimeMillis()
                     }
                 } else {
                     fullSpeedSince = 0L
