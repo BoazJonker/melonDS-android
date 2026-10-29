@@ -17,10 +17,11 @@ object DevicePerformance {
      * @param maxScale Highest internal resolution the automatic setting may use
      */
     enum class Tier(val startScale: Int, val maxScale: Int) {
-        LOW(2, 3),
-        MID(3, 4),
-        HIGH(4, 5),
-        FLAGSHIP(5, 6),
+        // Starting scales leave headroom for the heaviest scenes, like the train rides: 4x already matches a 1080p screen held upright
+        LOW(2, 2),
+        MID(2, 3),
+        HIGH(3, 4),
+        FLAGSHIP(4, 5),
     }
 
     // Chip model names (Build.SOC_MODEL) by tier

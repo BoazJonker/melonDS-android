@@ -129,6 +129,8 @@ class EmulatorViewModel @Inject constructor(
         const val AUTO_RESOLUTION_MIN_STEP_INTERVAL_MS = 180_000L
         // A slowdown within this much play time means the resolution is too high for the device, rather than the device getting warm
         const val AUTO_RESOLUTION_EARLY_PLAY_TIME_MS = 180_000L
+        // Early in the game, a slowdown is handled sooner, so that a resolution that's too high for the device doesn't spoil the opening scenes
+        const val AUTO_RESOLUTION_EARLY_AVERAGE_SAMPLES = 6
         const val MIN_AUTO_RESOLUTION_SCALE = 1
         const val SPIRIT_TRACKS_GAME_CODE = "BKI"
     }
@@ -544,7 +546,9 @@ class EmulatorViewModel @Inject constructor(
                 }
 
                 val scale = settingsRepository.getAutoInternalResolutionScale()
-                val isSlow = recentFps.size >= AUTO_RESOLUTION_AVERAGE_SAMPLES && recentFps.average() < AUTO_RESOLUTION_MIN_FPS
+                val isEarly = playTime < AUTO_RESOLUTION_EARLY_PLAY_TIME_MS && lastStepDownTime == 0L
+                val requiredSamples = if (isEarly) AUTO_RESOLUTION_EARLY_AVERAGE_SAMPLES else AUTO_RESOLUTION_AVERAGE_SAMPLES
+                val isSlow = recentFps.size >= requiredSamples && recentFps.takeLast(requiredSamples).average() < AUTO_RESOLUTION_MIN_FPS
                 val canStepDown = lastStepDownTime == 0L || now - lastStepDownTime > AUTO_RESOLUTION_MIN_STEP_INTERVAL_MS
                 if (isSlow && canStepDown && scale > MIN_AUTO_RESOLUTION_SCALE) {
                     if (playTime < AUTO_RESOLUTION_EARLY_PLAY_TIME_MS) {
