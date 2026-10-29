@@ -253,7 +253,7 @@
     <string name="background_train_spirit">Spirit train</string>
     <string name="background_train_classic">Classic steam train</string>
     <string name="launch_last_game_on_startup">Start straight in the game</string>
-    <string name="launch_last_game_on_startup_summary">After you've played once, opening the app goes straight into Spirit Tracks. Turn this off to see the start screen first</string>
+    <string name="launch_last_game_on_startup_summary">After you\'ve played once, opening the app goes straight into Spirit Tracks. Turn this off to see the start screen first</string>
     <string name="renderer">Renderer</string>
     <string name="dsi_camera_source">DSi camera source</string>
     <string name="external_screen_layout">External screen layout</string>
