@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
@@ -41,6 +42,19 @@ class PlankButton(context: Context) : View(context) {
         set(value) {
             field = value
             updateShaders()
+            requestLayout()
+            invalidate()
+        }
+
+    enum class Medal { NONE, PLAY, SETTINGS }
+
+    /**
+     * A gold-ringed medal on the left of the button, with a symbol in it. The text then lines up to the right of it.
+     */
+    var medal = Medal.NONE
+        set(value) {
+            field = value
+            requestLayout()
             invalidate()
         }
 
@@ -71,6 +85,12 @@ class PlankButton(context: Context) : View(context) {
         textAlign = Paint.Align.CENTER
     }
 
+    private val medalDisc = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val medalOuterRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Palette.GOLD_LIGHT }
+    private val medalInnerRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Palette.GOLD }
+    private val medalSymbol = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.GOLD_LIGHT; strokeCap = Paint.Cap.ROUND }
+    private val symbolPath = Path()
+
     private val depth get() = 5f * d
 
     init {
@@ -80,7 +100,12 @@ class PlankButton(context: Context) : View(context) {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val height = ((if (subtitle != null) 72f else 60f) * d).toInt()
+        val height = when {
+            medal != Medal.NONE && isPrimary -> 86f * d
+            medal != Medal.NONE -> 78f * d
+            subtitle != null -> 72f * d
+            else -> 60f * d
+        }.toInt()
         setMeasuredDimension(width, resolveSize(height, heightMeasureSpec))
     }
 
@@ -145,14 +170,25 @@ class PlankButton(context: Context) : View(context) {
         canvas.drawRoundRect(face, faceCorner, faceCorner, facePaint)
         canvas.drawRoundRect(gloss, gloss.height() / 2f, gloss.height() / 2f, glossPaint)
 
+        var textX = face.centerX()
+        val align = if (medal == Medal.NONE) Paint.Align.CENTER else Paint.Align.LEFT
+        titlePaint.textAlign = align
+        subtitlePaint.textAlign = align
+        if (medal != Medal.NONE) {
+            val medalRadius = face.height() / 2f - 3f * d
+            val medalX = face.left + face.height() / 2f
+            drawMedal(canvas, medalX, face.centerY(), medalRadius)
+            textX = medalX + medalRadius + 14f * d
+        }
+
         val sub = subtitle
         if (sub == null) {
-            canvas.drawText(title, face.centerX(), face.centerY() - (titlePaint.descent() + titlePaint.ascent()) / 2f, titlePaint)
+            canvas.drawText(title, textX, face.centerY() - (titlePaint.descent() + titlePaint.ascent()) / 2f, titlePaint)
         } else {
             val total = titlePaint.textSize + subtitlePaint.textSize * 1.15f
             val titleBaseline = face.centerY() - total / 2f + titlePaint.textSize * 0.85f
-            canvas.drawText(title, face.centerX(), titleBaseline, titlePaint)
-            canvas.drawText(sub, face.centerX(), titleBaseline + subtitlePaint.textSize * 1.3f, subtitlePaint)
+            canvas.drawText(title, textX, titleBaseline, titlePaint)
+            canvas.drawText(sub, textX, titleBaseline + subtitlePaint.textSize * 1.3f, subtitlePaint)
         }
 
         if (press.press > 0f) {
@@ -160,6 +196,40 @@ class PlankButton(context: Context) : View(context) {
             canvas.drawRoundRect(cap, capCorner, capCorner, darkenPaint)
         }
         canvas.restore()
+    }
+
+    private fun drawMedal(canvas: Canvas, cx: Float, cy: Float, r: Float) {
+        medalDisc.color = if (isPrimary) Palette.INK else Palette.NIGHT_MID
+        canvas.drawCircle(cx, cy, r, medalDisc)
+        medalOuterRing.strokeWidth = 2f * d
+        canvas.drawCircle(cx, cy, r - 1.5f * d, medalOuterRing)
+        medalInnerRing.strokeWidth = 1.5f * d
+        canvas.drawCircle(cx, cy, r * 0.74f, medalInnerRing)
+
+        val s = r * 0.34f
+        when (medal) {
+            Medal.PLAY -> {
+                medalSymbol.style = Paint.Style.FILL
+                symbolPath.reset()
+                symbolPath.moveTo(cx - s * 0.7f, cy - s)
+                symbolPath.lineTo(cx + s * 1.05f, cy)
+                symbolPath.lineTo(cx - s * 0.7f, cy + s)
+                symbolPath.close()
+                canvas.drawPath(symbolPath, medalSymbol)
+            }
+            Medal.SETTINGS -> {
+                medalSymbol.style = Paint.Style.STROKE
+                medalSymbol.strokeWidth = 2f * d
+                canvas.drawCircle(cx, cy, s * 0.45f, medalSymbol)
+                for (i in 0 until 8) {
+                    val angle = Math.toRadians(i * 45.0)
+                    val cos = kotlin.math.cos(angle).toFloat()
+                    val sin = kotlin.math.sin(angle).toFloat()
+                    canvas.drawLine(cx + cos * s * 0.72f, cy + sin * s * 0.72f, cx + cos * s * 1.05f, cy + sin * s * 1.05f, medalSymbol)
+                }
+            }
+            Medal.NONE -> {}
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")

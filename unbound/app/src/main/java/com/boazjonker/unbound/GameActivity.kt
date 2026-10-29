@@ -248,6 +248,20 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             gameView.requestRender()
         }
         add(filter)
+        add(Themed.plank(this, getString(R.string.menu_restart)) {
+            Themed.showDialog(
+                this,
+                getString(R.string.restart_confirm_title),
+                getString(R.string.restart_confirm),
+                listOf(
+                    getString(R.string.menu_restart) to {
+                        emulator.runAndWait { NativeCore.reset() }
+                        closeMenu()
+                    },
+                    getString(R.string.cancel) to {},
+                ),
+            )
+        })
         add(Themed.plank(this, getString(R.string.menu_quit)) { finish() })
 
         menuScroll = Themed.scroll(this, panel)

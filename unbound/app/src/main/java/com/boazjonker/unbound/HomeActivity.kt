@@ -3,6 +3,7 @@ package com.boazjonker.unbound
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.graphics.drawable.GradientDrawable
 import android.text.format.DateUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -126,9 +127,9 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
-    private fun addButton(button: PlankButton) {
+    private fun addButton(button: PlankButton, topMargin: Float = 4f) {
         content.addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(4f)
+            this.topMargin = dp(topMargin)
         })
     }
 
@@ -159,45 +160,55 @@ class HomeActivity : ComponentActivity() {
     }
 
     private fun buildMain() {
-        if (files.resumeState.isFile) {
+        // One Play button: it continues from the quick save when there is one, and otherwise starts the game
+        val canResume = files.resumeState.isFile
+        val hint = if (canResume) {
             val savedAt = files.resumeState.lastModified()
             val savedAgo = if (System.currentTimeMillis() - savedAt < DateUtils.MINUTE_IN_MILLIS) {
                 getString(R.string.just_now)
             } else {
                 DateUtils.getRelativeTimeSpanString(savedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
             }
-            addButton(Themed.plank(this, getString(R.string.home_continue), getString(R.string.home_continue_hint, savedAgo), primary = true) {
-                startGame(resume = true)
-            })
+            getString(R.string.home_play_resume_hint, savedAgo)
+        } else {
+            getString(R.string.home_play_hint)
         }
-        addButton(Themed.plank(this, getString(R.string.home_start), getString(R.string.home_start_hint), primary = !files.resumeState.isFile) {
-            if (files.resumeState.isFile) {
-                Themed.showDialog(
-                    this,
-                    getString(R.string.home_start_confirm_title),
-                    getString(R.string.home_start_confirm),
-                    listOf(
-                        getString(R.string.home_start) to { startGame(resume = false) },
-                        getString(R.string.cancel) to {},
-                    ),
-                )
-            } else {
-                startGame(resume = false)
-            }
-        })
+        addButton(Themed.plank(this, getString(R.string.home_play), hint, primary = true) {
+            startGame(resume = canResume)
+        }.apply { medal = PlankButton.Medal.PLAY }, topMargin = 8f)
         addButton(Themed.plank(this, getString(R.string.home_settings)) {
             showingSettings = true
             refresh()
-        })
+        }.apply { medal = PlankButton.Medal.SETTINGS }, topMargin = 12f)
         if (files.patch.isFile) {
-            content.addView(TextView(this).apply {
-                text = getString(R.string.home_patch_active)
-                setTextColor(0xB3E6E0FA.toInt())
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                gravity = Gravity.CENTER
-                setPadding(0, dp(10f), 0, 0)
-            })
+            addFooter(getString(R.string.home_patch_active))
         }
+    }
+
+    /**
+     * A small line of text between two little gold rings.
+     */
+    private fun addFooter(text: String) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(22f), 0, 0)
+        }
+        fun ring() = View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setStroke(dp(1.5f), Palette.GOLD)
+            }
+        }
+        row.addView(ring(), LinearLayout.LayoutParams(dp(8f), dp(8f)))
+        row.addView(TextView(this).apply {
+            this.text = text
+            setTextColor(0xFFD8D0F2.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setPadding(dp(10f), 0, dp(10f), 0)
+        })
+        row.addView(ring(), LinearLayout.LayoutParams(dp(8f), dp(8f)))
+        content.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
 
     private fun buildSettings() {

@@ -10,12 +10,9 @@
     <string name="home_welcome">Welcome to Borrius! Choose your Pokémon Unbound game file (.gba, or a .zip with the .gba inside).\n\nOnly have the Unbound patch (.bps)? Choose a Pokémon FireRed (US, version 1.0) game file now and add the patch in the next step.</string>
     <string name="home_choose_rom">Choose game file</string>
     <string name="home_choose_rom_hint">.gba or .zip</string>
-    <string name="home_continue">Continue</string>
-    <string name="home_continue_hint">Right where you left off · %1$s</string>
-    <string name="home_start">Start game</string>
-    <string name="home_start_hint">Boot up and load your in-game save</string>
-    <string name="home_start_confirm_title">Start the game?</string>
-    <string name="home_start_confirm">Progress since your last in-game save will be lost. Your in-game save stays safe.</string>
+    <string name="home_play">PLAY</string>
+    <string name="home_play_resume_hint">Right where you left off · %1$s</string>
+    <string name="home_play_hint">Start your adventure in Borrius</string>
     <string name="home_settings">Settings</string>
     <string name="home_patch_active">Unbound patch is applied when the game starts</string>
 
@@ -55,6 +52,9 @@
     <string name="menu_load_state">Load state</string>
     <string name="menu_speed">Fast-forward: %1$dx</string>
     <string name="menu_filter">Screen: %1$s</string>
+    <string name="menu_restart">Restart game</string>
+    <string name="restart_confirm_title">Restart the game?</string>
+    <string name="restart_confirm">Progress since your last in-game save will be lost. Your in-game save stays safe.</string>
     <string name="menu_quit">Back to title</string>
 
     <!-- Banners -->
