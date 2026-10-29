@@ -161,4 +161,12 @@
         <item>cosine</item>
         <item>none</item>
     </string-array>
+    <string-array name="background_style_options">
+        <item>@string/background_style_countryside</item>
+        <item>@string/background_style_spirit_swirls</item>
+    </string-array>
+    <string-array name="background_style_values" translatable="false">
+        <item>countryside</item>
+        <item>spirit_swirls</item>
+    </string-array>
 </resources>

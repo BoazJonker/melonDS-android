@@ -38,6 +38,16 @@
                 android:defaultValue="true" />
 
         <ListPreference
+                android:key="background_style"
+                android:title="@string/background_style"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:dependency="animated_background"
+                android:entries="@array/background_style_options"
+                android:entryValues="@array/background_style_values"
+                android:defaultValue="countryside"/>
+
+        <ListPreference
                 android:key="background_train"
                 android:title="@string/background_train"
                 android:summary="%s"

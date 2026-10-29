@@ -2,6 +2,7 @@ package me.magnum.melonds.ui.emulator
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Matrix
@@ -36,6 +37,13 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
+    enum class SceneStyle {
+        // Countryside with a passing train
+        COUNTRYSIDE,
+        // Plain parchment with swirls and little spirits drifting by
+        SPIRIT_SWIRLS,
+    }
+
     enum class TrainStyle {
         // Toy-like train in the style of Spirit Tracks
         SPIRIT,
@@ -57,6 +65,16 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         const val WOOD = 0xFF6B4423.toInt()
         const val GOLD = 0xFFE2B54A.toInt()
         const val INK = 0xFF232128.toInt()
+
+        // Spirit swirls background: parchment like the button faces, with the pattern in a slightly darker tone
+        const val PARCHMENT = 0xFFEADBB4.toInt()
+        const val PATTERN_SPIRIT = 0x4D96703A
+        const val PATTERN_SWIRL = 0x3896703A
+        const val PATTERN_CELL_DP = 75f
+        const val PATTERN_SPEED_DP = 10f
+        // Shadow under the screens, so that they seem to float above the parchment
+        const val SCREEN_SHADOW = 0x94462A0C.toInt()
+        const val SCREEN_SHADOW_NEAR = 0x52462A0C
     }
 
     private class ScreenArea(val rect: RectF, val isMiniScreen: Boolean)
@@ -88,6 +106,14 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             invalidate()
         }
 
+    var sceneStyle = SceneStyle.COUNTRYSIDE
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
     var trainStyle = TrainStyle.SPIRIT
         set(value) {
             field = value
@@ -116,6 +142,13 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
 
     // Static layers (sky, sun, rays, vignette)
     private var skyCache: Bitmap? = null
+    // Parchment with its soft light, for the spirit swirls background. Created when first needed
+    private var parchmentCache: Bitmap? = null
+    // Blurred shadows under the screens, by screen size
+    private val screenShadowCache = HashMap<Long, Bitmap>()
+    private val spiritPath = Path()
+    private val swirlPath = Path()
+    private val patternPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     // Vertical gradients, created when the size changes
     private var backMountainShader: Shader? = null
@@ -185,6 +218,10 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         stopAnimation()
         skyCache?.recycle()
         skyCache = null
+        parchmentCache?.recycle()
+        parchmentCache = null
+        screenShadowCache.values.forEach { it.recycle() }
+        screenShadowCache.clear()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -198,6 +235,8 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         groundShader = verticalGradient(hf * 0.79f, hf, 0xFF62A048.toInt(), 0xFF467A32.toInt())
 
         gradientCache.clear()
+        parchmentCache?.recycle()
+        parchmentCache = null
         skyCache?.recycle()
         skyCache = null
         if (w > 0 && h > 0) {
@@ -217,7 +256,10 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         }
 
         if (isSceneEnabled) {
-            drawScene(canvas, w, h)
+            when (sceneStyle) {
+                SceneStyle.COUNTRYSIDE -> drawScene(canvas, w, h)
+                SceneStyle.SPIRIT_SWIRLS -> drawSpiritSwirls(canvas, w, h)
+            }
         }
         drawScreenFrames(canvas)
     }
@@ -1177,6 +1219,148 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         emitSteam(t, front - 10 * d, wy - 40 * d + bob)
         drawCylinderSteam(canvas, front - 44 * d, wy + 4 * d, t, 4f)
         currentCanvas = null
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Spirit swirls background
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Plain parchment, in the colour of the button faces, with small swirls and little spirits in a slightly darker tone drifting slowly to the left. The
+     * screens cast a soft shadow on it, so that they seem to float above it.
+     */
+    private fun drawSpiritSwirls(canvas: Canvas, w: Float, h: Float) {
+        val t = (SystemClock.uptimeMillis() - startTime) / 1000f
+        canvas.save()
+        screenAreas.forEach { clipOutRect(canvas, it.rect) }
+
+        val parchment = parchmentCache ?: Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565).also {
+            drawParchment(Canvas(it), w, h)
+            parchmentCache = it
+        }
+        canvas.drawBitmap(parchment, 0f, 0f, null)
+
+        if (spiritPath.isEmpty) {
+            buildPatternPaths()
+        }
+        val cell = PATTERN_CELL_DP * d
+        // The pattern repeats every two cells, since spirits and swirls alternate
+        val offset = (t * PATTERN_SPEED_DP * d) % (cell * 2)
+        val rows = (h / cell).toInt() + 2
+        val columns = (w / cell).toInt() + 4
+        for (row in 0 until rows) {
+            for (column in -2 until columns) {
+                val x = column * cell - offset + (row % 2) * cell / 2f
+                val y = row * cell + cell * 0.35f
+                val seed = ((row * 7 + column * 13) % 5 + 5) % 5
+                canvas.save()
+                if ((row + column) % 2 == 0) {
+                    canvas.translate(x, y + sin(t * 1.3f + column + row) * 3f * d)
+                    val scale = (0.9f + seed * 0.08f) * 0.75f * d
+                    canvas.scale(scale, scale)
+                    patternPaint.style = Paint.Style.FILL
+                    patternPaint.color = PATTERN_SPIRIT
+                    canvas.drawPath(spiritPath, patternPaint)
+                } else {
+                    canvas.translate(x, y)
+                    canvas.rotate((t * 0.25f + seed) * 180f / PI.toFloat())
+                    val scale = (0.8f + seed * 0.06f) * 0.75f * d
+                    canvas.scale(scale, scale)
+                    patternPaint.style = Paint.Style.STROKE
+                    patternPaint.strokeWidth = 3.2f
+                    patternPaint.strokeCap = Paint.Cap.ROUND
+                    patternPaint.color = PATTERN_SWIRL
+                    canvas.drawPath(swirlPath, patternPaint)
+                }
+                canvas.restore()
+            }
+        }
+
+        screenAreas.forEach { drawScreenShadow(canvas, it) }
+        canvas.restore()
+    }
+
+    private fun drawParchment(canvas: Canvas, w: Float, h: Float) {
+        canvas.drawColor(PARCHMENT)
+        shaded.shader = RadialGradient(
+            w / 2f, h / 2f, max(w, h) * 0.7f,
+            intArrayOf(0x59FFFAEB, 0x00FFFAEB, 0x2E78501E),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP,
+        )
+        canvas.drawRect(0f, 0f, w, h, shaded)
+    }
+
+    /**
+     * Builds the pattern's shapes, in their own units: a little spirit (the same shape as in the app's logo, with two eye holes) and a swirl with a tail.
+     */
+    private fun buildPatternPaths() {
+        spiritPath.apply {
+            reset()
+            fillType = Path.FillType.EVEN_ODD
+            moveTo(0f, -14f)
+            cubicTo(12f, -14f, 18f, -5f, 18f, 4f)
+            cubicTo(18f, 11f, 15f, 15f, 13f, 18f)
+            cubicTo(12f, 21f, 14f, 24f, 17f, 26f)
+            cubicTo(12f, 27f, 9f, 25f, 8f, 23f)
+            cubicTo(6f, 27f, 2f, 29f, -3f, 28f)
+            cubicTo(0f, 26f, 0f, 23f, -2f, 21f)
+            cubicTo(-6f, 24f, -11f, 24f, -14f, 22f)
+            cubicTo(-11f, 20f, -11f, 18f, -12f, 16f)
+            cubicTo(-17f, 12f, -18f, 7f, -18f, 2f)
+            cubicTo(-18f, -7f, -11f, -14f, 0f, -14f)
+            close()
+            addOval(RectF(-8.2f, -4f, -3.8f, 2f), Path.Direction.CW)
+            addOval(RectF(3.8f, -4f, 8.2f, 2f), Path.Direction.CW)
+        }
+
+        swirlPath.apply {
+            reset()
+            val turns = PI.toFloat() * 3.2f
+            var angle = 0f
+            while (angle <= turns) {
+                val r = 1.6f + angle * 2.6f
+                if (angle == 0f) moveTo(cos(angle) * r, sin(angle) * r) else lineTo(cos(angle) * r, sin(angle) * r)
+                angle += 0.12f
+            }
+            val endRadius = 1.6f + turns * 2.6f
+            val endX = cos(turns) * endRadius
+            val endY = sin(turns) * endRadius
+            lineTo(endX, endY)
+            quadTo(30f, 18f, 46f, 8f)
+        }
+    }
+
+    private fun drawScreenShadow(canvas: Canvas, area: ScreenArea) {
+        val shadow = getScreenShadow(area.rect.width().toInt(), area.rect.height().toInt(), if (area.isMiniScreen) 3 * d else 0f)
+        val padding = screenShadowPadding()
+        val alpha = if (area.isMiniScreen) miniScreenAlpha else 1f
+        patternPaint.alpha = (alpha * 255).toInt().coerceIn(0, 255)
+        canvas.drawBitmap(shadow, area.rect.left - padding, area.rect.top - padding, patternPaint)
+        patternPaint.alpha = 255
+    }
+
+    private fun screenShadowPadding() = 36 * d
+
+    /**
+     * Returns a blurred shadow for a screen of the given size, drawn once and reused. Blurring is done in software, where it works on every Android version.
+     */
+    private fun getScreenShadow(screenWidth: Int, screenHeight: Int, corner: Float): Bitmap {
+        val key = (screenWidth.toLong() shl 32) or screenHeight.toLong()
+        return screenShadowCache.getOrPut(key) {
+            val padding = screenShadowPadding()
+            val bitmap = Bitmap.createBitmap((screenWidth + padding * 2).toInt().coerceAtLeast(1), (screenHeight + padding * 2).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+            val shadowCanvas = Canvas(bitmap)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            // A wide shadow falling downwards, and a tighter one close to the screen's edge
+            paint.color = SCREEN_SHADOW
+            paint.maskFilter = BlurMaskFilter(10 * d, BlurMaskFilter.Blur.NORMAL)
+            shadowCanvas.drawRoundRect(RectF(padding + 2 * d, padding + 16 * d, padding + screenWidth - 2 * d, padding + screenHeight + 14 * d), corner, corner, paint)
+            paint.color = SCREEN_SHADOW_NEAR
+            paint.maskFilter = BlurMaskFilter(3.5f * d, BlurMaskFilter.Blur.NORMAL)
+            shadowCanvas.drawRoundRect(RectF(padding, padding + 5 * d, padding + screenWidth, padding + screenHeight + 5 * d), corner, corner, paint)
+            bitmap
+        }
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------

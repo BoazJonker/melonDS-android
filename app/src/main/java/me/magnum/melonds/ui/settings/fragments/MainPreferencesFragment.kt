@@ -104,6 +104,16 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             }
         }
 
+        // The train choice only applies to the countryside background
+        val trainPreference = findPreference<ListPreference>("background_train")
+        findPreference<ListPreference>("background_style")?.let { stylePreference ->
+            trainPreference?.isVisible = stylePreference.value != "spirit_swirls"
+            stylePreference.setOnPreferenceChangeListener { _, newValue ->
+                trainPreference?.isVisible = newValue != "spirit_swirls"
+                true
+            }
+        }
+
         findPreference<SwitchPreference>("cel_shading")?.setOnPreferenceChangeListener { _, newValue ->
             val filter = if (newValue as Boolean) VideoFiltering.TOON else VideoFiltering.LINEAR
             preferenceManager.sharedPreferences?.edit { putString("video_filtering", filter.name.lowercase()) }

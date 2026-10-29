@@ -1311,6 +1311,10 @@ class EmulatorActivity : AppCompatActivity() {
         val isEnabled = preferences.getBoolean("animated_background", true)
         // The view stays visible because it also draws the screen frames
         binding.viewAnimatedBackground.isVisible = true
+        binding.viewAnimatedBackground.sceneStyle = when (preferences.getString("background_style", "countryside")) {
+            "spirit_swirls" -> SpiritTracksBackgroundView.SceneStyle.SPIRIT_SWIRLS
+            else -> SpiritTracksBackgroundView.SceneStyle.COUNTRYSIDE
+        }
         binding.viewAnimatedBackground.trainStyle = when (preferences.getString("background_train", "spirit")) {
             "classic" -> SpiritTracksBackgroundView.TrainStyle.CLASSIC
             else -> SpiritTracksBackgroundView.TrainStyle.SPIRIT

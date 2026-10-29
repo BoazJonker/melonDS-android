@@ -736,4 +736,7 @@
     <string name="sound_quality_original">Original DS (like the real console, a bit crunchy)</string>
     <string name="settings_game_folder">Game folder</string>
     <string name="settings_game_folder_none">Not chosen yet</string>
+    <string name="background_style">Background</string>
+    <string name="background_style_countryside">Countryside with a train</string>
+    <string name="background_style_spirit_swirls">Spirit swirls</string>
 </resources>
