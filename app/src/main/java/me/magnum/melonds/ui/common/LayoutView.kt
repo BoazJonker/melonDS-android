@@ -15,6 +15,8 @@ open class LayoutView(context: Context, attrs: AttributeSet?) : FrameLayout(cont
 
     init {
         layoutDirection = LAYOUT_DIRECTION_LTR
+        // Let controls draw slightly past their bounds (shadows, ripples, a pushed stick knob) instead of being cut off
+        clipChildren = false
     }
 
     fun setLayoutComponentViewBuilderFactory(factory: LayoutComponentViewBuilderFactory) {

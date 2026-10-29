@@ -47,7 +47,8 @@ class StickView(context: Context) : View(context) {
      * How far the knob can travel from the centre, in pixels. Used by the input handler to normalise the stick position.
      */
     val travelRadius: Float
-        get() = min(width, height) * 0.30f
+        // Leaves room for the knob and its shadow at the edge of the view, so it's never cut off when pushed all the way
+        get() = min(width, height) * 0.24f
 
     fun setKnob(x: Float, y: Float) {
         resetAnimator?.cancel()
