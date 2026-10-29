@@ -721,4 +721,19 @@
     <string name="home_not_spirit_tracks_message">This folder doesn\'t hold Spirit Tracks. Please choose the folder with your copy of The Legend of Zelda: Spirit Tracks (.nds).</string>
     <string name="home_no_access_title">Can\'t open that folder</string>
     <string name="home_no_access_message">The app isn\'t allowed to use this folder. Please choose a folder on your phone\'s storage or SD card, such as Downloads or Documents.</string>
+    <!-- Settings -->
+    <string name="settings_section_graphics">Graphics</string>
+    <string name="settings_section_controls">Controls</string>
+    <string name="settings_section_sound">Sound</string>
+    <string name="settings_section_saves">Saves</string>
+    <string name="settings_section_more">More options</string>
+    <string name="settings_cel_shading">Cel-shading</string>
+    <string name="settings_cel_shading_summary">Soft cartoon shading and outlines</string>
+    <string name="settings_auto_resolution_summary">Auto: %1$dx, chosen for your phone</string>
+    <string name="settings_sound_quality">Sound quality</string>
+    <string name="sound_quality_best">Best (smoothest sound, recommended)</string>
+    <string name="sound_quality_smooth">Smooth (lighter smoothing)</string>
+    <string name="sound_quality_original">Original DS (like the real console, a bit crunchy)</string>
+    <string name="settings_game_folder">Game folder</string>
+    <string name="settings_game_folder_none">Not chosen yet</string>
 </resources>

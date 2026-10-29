@@ -151,4 +151,14 @@
         <item>spirit</item>
         <item>classic</item>
     </string-array>
+    <string-array name="sound_quality_options">
+        <item>@string/sound_quality_best</item>
+        <item>@string/sound_quality_smooth</item>
+        <item>@string/sound_quality_original</item>
+    </string-array>
+    <string-array name="sound_quality_values" translatable="false">
+        <item>cubic</item>
+        <item>cosine</item>
+        <item>none</item>
+    </string-array>
 </resources>

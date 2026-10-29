@@ -71,8 +71,10 @@ class MelonDSApplication : Application(), Configuration.Provider {
     }
 
     private fun forceToonFilter() {
-        PreferenceManager.getDefaultSharedPreferences(this).edit {
-            putString("video_filtering", VideoFiltering.TOON.name.lowercase())
+        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        val filter = if (preferences.getBoolean("cel_shading", true)) VideoFiltering.TOON else VideoFiltering.LINEAR
+        preferences.edit {
+            putString("video_filtering", filter.name.lowercase())
         }
     }
 

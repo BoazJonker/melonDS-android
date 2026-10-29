@@ -365,7 +365,8 @@ class SharedPreferencesSettingsRepository(
     }
 
     private fun getAudioInterpolation(): AudioInterpolation {
-        val interpolationPreference = preferences.getString("audio_interpolation", "none")!!
+        // "Sound quality" setting. The smoothest interpolation is the default: it makes the music sound cleaner
+        val interpolationPreference = preferences.getString("sound_quality", "cubic")!!
         return enumValueOfIgnoreCase(interpolationPreference)
     }
 
