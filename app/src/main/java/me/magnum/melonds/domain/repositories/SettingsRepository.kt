@@ -48,6 +48,15 @@ interface SettingsRepository {
      * Resets the automatic resolution to the one this device starts at. Called before a game is loaded.
      */
     fun startAutoInternalResolutionSession()
+    /**
+     * Battery saver: a lower resolution, a slower background and the sustained performance mode, for a cooler phone and longer play.
+     */
+    fun isBatterySaverEnabled(): Boolean
+    /**
+     * The game whose state was saved when the player left the app, to be continued straight away next time. Null when there is none.
+     */
+    fun getQuickResumeRomUri(): String?
+    fun setQuickResumeRomUri(romUri: String?)
     fun getVideoFiltering(): Flow<VideoFiltering>
     fun isThreadedRenderingEnabled(): Flow<Boolean>
     fun getRenderStrategy(): Flow<RenderStrategy>

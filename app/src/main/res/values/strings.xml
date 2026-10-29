@@ -739,4 +739,8 @@
     <string name="background_style">Background</string>
     <string name="background_style_countryside">Countryside with a train</string>
     <string name="background_style_spirit_swirls">Spirit swirls</string>
+    <string name="quick_resume_banner">Welcome back! Continuing where you left off. Tap here to undo</string>
+    <string name="battery_saver_banner">🍃 Battery saver is on</string>
+    <string name="settings_battery_saver">Battery saver</string>
+    <string name="settings_battery_saver_summary">Cooler phone, longer play: a lower resolution and a calmer background</string>
 </resources>

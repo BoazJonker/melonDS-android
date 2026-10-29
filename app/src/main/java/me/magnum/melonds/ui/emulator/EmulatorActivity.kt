@@ -579,6 +579,14 @@ class EmulatorActivity : AppCompatActivity() {
                             showPendingSubmissionsDialog.value = true
                         }
                         is EmulatorUiEvent.ShowContinuePrompt -> showContinuePrompt(it.autoSaveSlot)
+                        EmulatorUiEvent.ShowQuickResumeBanner -> lifecycleScope.launch {
+                            showMessageBanner(R.string.quick_resume_banner, isLongMessage = true) {
+                                viewModel.undoQuickResume()
+                            }
+                        }
+                        EmulatorUiEvent.ShowBatterySaverBanner -> lifecycleScope.launch {
+                            showMessageBanner(R.string.battery_saver_banner, isLongMessage = false)
+                        }
                     }
                 }
             }
@@ -1311,6 +1319,7 @@ class EmulatorActivity : AppCompatActivity() {
         val isEnabled = preferences.getBoolean("animated_background", true)
         // The view stays visible because it also draws the screen frames
         binding.viewAnimatedBackground.isVisible = true
+        binding.viewAnimatedBackground.isLowPower = preferences.getBoolean("battery_saver", false)
         binding.viewAnimatedBackground.sceneStyle = when (preferences.getString("background_style", "countryside")) {
             "spirit_swirls" -> SpiritTracksBackgroundView.SceneStyle.SPIRIT_SWIRLS
             else -> SpiritTracksBackgroundView.SceneStyle.COUNTRYSIDE
@@ -1356,12 +1365,22 @@ class EmulatorActivity : AppCompatActivity() {
      * Shows a message in the Spirit Tracks styled banner at the top of the screen. The banner slides in, stays visible for a while and then fades out. If this
      * coroutine is cancelled (because a new message arrived), the banner starts hiding immediately.
      */
-    private suspend fun showMessageBanner(@StringRes message: Int, isLongMessage: Boolean) {
+    private suspend fun showMessageBanner(@StringRes message: Int, isLongMessage: Boolean, onClick: (() -> Unit)? = null) {
         val banner = binding.textMessageBanner
         val slideOffset = -16 * resources.displayMetrics.density
 
         banner.animate().cancel()
         banner.setText(message)
+        // Some banners can be tapped, for example to undo what they announce
+        banner.setOnClickListener(onClick?.let { action ->
+            View.OnClickListener {
+                banner.setOnClickListener(null)
+                banner.isClickable = false
+                action()
+                banner.animate().alpha(0f).setDuration(200).withEndAction { banner.isVisible = false }.start()
+            }
+        })
+        banner.isClickable = onClick != null
         banner.alpha = 0f
         banner.translationY = slideOffset
         banner.isVisible = true
@@ -1372,8 +1391,10 @@ class EmulatorActivity : AppCompatActivity() {
             .start()
 
         try {
-            delay(if (isLongMessage) 3500 else 2000)
+            delay(if (onClick != null) 6000 else if (isLongMessage) 3500 else 2000)
         } finally {
+            banner.setOnClickListener(null)
+            banner.isClickable = false
             banner.animate()
                 .alpha(0f)
                 .translationY(slideOffset)

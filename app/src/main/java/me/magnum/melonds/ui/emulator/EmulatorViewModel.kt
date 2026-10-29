@@ -573,25 +573,44 @@ class EmulatorViewModel @Inject constructor(
     }
 
     /**
-     * If there's an autosave for this game, pauses the game and asks the player whether to continue from it. This replaces loading the autosave from the
-     * pause menu, which is not available.
+     * If there's an autosave for this game, continues from it. When it was made as the player left the app (quick resume), the game continues straight away
+     * and a banner offers to undo. Otherwise, the game is paused and the player is asked whether to continue from it. This replaces loading the autosave from
+     * the pause menu, which is not available.
      */
     private suspend fun offerToContinueFromAutoSave(rom: Rom) {
+        if (settingsRepository.isBatterySaverEnabled()) {
+            _uiEvent.emit(EmulatorUiEvent.ShowBatterySaverBanner)
+        }
         if (!emulatorSession.areSaveStateLoadsAllowed()) {
             return
         }
 
+        val isQuickResume = settingsRepository.getQuickResumeRomUri() == rom.uri.toString()
+        settingsRepository.setQuickResumeRomUri(null)
         val autoSaveSlot = runCatching { saveStatesRepository.getRomSaveStates(rom) }.getOrNull()?.getOrNull(SaveStateSlot.AUTO_SAVE_SLOT) ?: return
         if (!autoSaveSlot.exists) {
             return
         }
 
         pauseEmulation()
-        _uiEvent.emit(EmulatorUiEvent.ShowContinuePrompt(autoSaveSlot))
+        if (isQuickResume && loadRomState(rom, autoSaveSlot)) {
+            resumeEmulation()
+            _uiEvent.emit(EmulatorUiEvent.ShowQuickResumeBanner)
+        } else {
+            _uiEvent.emit(EmulatorUiEvent.ShowContinuePrompt(autoSaveSlot))
+        }
     }
 
     /**
-     * Saves the game to the autosave slot when the player leaves the app, so that no progress is lost if the app is closed. The emulator is left paused.
+     * Undoes a quick resume: the game restarts, so that the player can load their own save from the game's menu instead.
+     */
+    fun undoQuickResume() {
+        resetEmulator()
+    }
+
+    /**
+     * Saves the game to the autosave slot when the player leaves the app, so that no progress is lost if the app is closed, and marks it for a quick resume.
+     * The emulator is left paused.
      */
     fun autoSaveOnLeave() {
         val rom = (_emulatorState.value as? EmulatorState.RunningRom)?.rom ?: return
@@ -602,7 +621,9 @@ class EmulatorViewModel @Inject constructor(
         sessionCoroutineScope.launch {
             pauseEmulation()
             val autoSaveSlot = SaveStateSlot(SaveStateSlot.AUTO_SAVE_SLOT, false, null, null)
-            runCatching { saveRomState(rom, autoSaveSlot) }
+            val saved = runCatching { saveRomState(rom, autoSaveSlot) }.getOrDefault(false)
+            // Next time the app starts, the game continues from this exact moment
+            settingsRepository.setQuickResumeRomUri(if (saved) rom.uri.toString() else null)
         }
     }
 

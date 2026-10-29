@@ -73,6 +73,9 @@ class SharedPreferencesSettingsRepository(
     companion object {
         private const val AUTO_INTERNAL_RESOLUTION = "auto"
         private const val KEY_AUTO_INTERNAL_RESOLUTION_SCALE = "video_internal_resolution_auto_scale"
+        private const val KEY_BATTERY_SAVER = "battery_saver"
+        private const val KEY_QUICK_RESUME_ROM = "quick_resume_rom"
+        private const val BATTERY_SAVER_RESOLUTION_SCALE = 2
         // Versioned so that limits learned with the earlier automatic resolution, which changed resolution much more often, are discarded
         private const val KEY_AUTO_INTERNAL_RESOLUTION_CEILING = "video_internal_resolution_auto_ceiling_v2"
 
@@ -199,7 +202,7 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun isSustainedPerformanceModeEnabled(): Boolean {
-        return preferences.getBoolean("enable_sustained_performance", false)
+        return preferences.getBoolean("enable_sustained_performance", false) || isBatterySaverEnabled()
     }
 
     override fun getRomSearchDirectories(): Array<Uri> {
@@ -625,6 +628,10 @@ class SharedPreferencesSettingsRepository(
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         preferenceSharedFlows[key]?.tryEmit(Unit)
+        if (key == KEY_BATTERY_SAVER && isAutoInternalResolutionEnabled()) {
+            // Switch the automatic resolution to the battery saver's (or back to the device's) straight away
+            startAutoInternalResolutionSession()
+        }
         if (key == KEY_AUTO_INTERNAL_RESOLUTION_SCALE) {
             // The automatic resolution is part of the internal resolution setting
             preferenceSharedFlows["video_internal_resolution"]?.tryEmit(Unit)
@@ -647,9 +654,22 @@ class SharedPreferencesSettingsRepository(
         return preferences.getInt(KEY_AUTO_INTERNAL_RESOLUTION_CEILING, DevicePerformance.getMaxUsefulScale(context))
     }
 
+    override fun isBatterySaverEnabled(): Boolean {
+        return preferences.getBoolean(KEY_BATTERY_SAVER, false)
+    }
+
+    override fun getQuickResumeRomUri(): String? {
+        return preferences.getString(KEY_QUICK_RESUME_ROM, null)
+    }
+
+    override fun setQuickResumeRomUri(romUri: String?) {
+        preferences.edit(commit = true) { putString(KEY_QUICK_RESUME_ROM, romUri) }
+    }
+
     override fun startAutoInternalResolutionSession() {
         // Every game starts at the resolution that suits the device, so a resolution lowered because the device got warm isn't kept forever
-        val scale = min(DevicePerformance.getTier(context).startScale, getAutoInternalResolutionCeiling())
+        val deviceScale = min(DevicePerformance.getTier(context).startScale, getAutoInternalResolutionCeiling())
+        val scale = if (isBatterySaverEnabled()) min(BATTERY_SAVER_RESOLUTION_SCALE, deviceScale) else deviceScale
         preferences.edit(commit = true) { putInt(KEY_AUTO_INTERNAL_RESOLUTION_SCALE, scale) }
     }
 

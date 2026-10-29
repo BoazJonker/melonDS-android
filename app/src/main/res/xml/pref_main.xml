@@ -7,6 +7,13 @@
             android:title="@string/settings_section_graphics"
             app:iconSpaceReserved="false">
 
+        <SwitchPreference
+                android:key="battery_saver"
+                android:title="@string/settings_battery_saver"
+                android:summary="@string/settings_battery_saver_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
         <ListPreference
                 android:key="video_internal_resolution"
                 android:title="@string/internal_resolution"

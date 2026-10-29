@@ -114,6 +114,11 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
             }
         }
 
+    /**
+     * Battery saver: the scene moves at half speed and is redrawn half as often.
+     */
+    var isLowPower = false
+
     var trainStyle = TrainStyle.SPIRIT
         set(value) {
             field = value
@@ -183,7 +188,7 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
                 return
             }
             invalidate()
-            postDelayed(this, FRAME_INTERVAL_MS)
+            postDelayed(this, if (isLowPower) FRAME_INTERVAL_MS * 2 else FRAME_INTERVAL_MS)
         }
     }
 
@@ -269,7 +274,7 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     private fun drawScene(canvas: Canvas, w: Float, h: Float) {
-        val t = (SystemClock.uptimeMillis() - startTime) / 1000f
+        val t = sceneTime()
         val camera = t * WORLD_SPEED_DP * d
         val trackY = h * 0.86f
 
@@ -311,6 +316,14 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
         nearClouds.forEach { drawCloud(canvas, wrapX(it.x * d, 22 * d * t, w + 700 * d), it.y * d, it.scale * 0.75f, 0.95f) }
 
         canvas.restore()
+    }
+
+    /**
+     * Time in seconds that drives the scene's animations. It runs at half speed in battery saver mode.
+     */
+    private fun sceneTime(): Float {
+        val seconds = (SystemClock.uptimeMillis() - startTime) / 1000f
+        return if (isLowPower) seconds * 0.5f else seconds
     }
 
     /**
@@ -1230,7 +1243,7 @@ class SpiritTracksBackgroundView @JvmOverloads constructor(
      * screens cast a soft shadow on it, so that they seem to float above it.
      */
     private fun drawSpiritSwirls(canvas: Canvas, w: Float, h: Float) {
-        val t = (SystemClock.uptimeMillis() - startTime) / 1000f
+        val t = sceneTime()
         canvas.save()
         screenAreas.forEach { clipOutRect(canvas, it.rect) }
 

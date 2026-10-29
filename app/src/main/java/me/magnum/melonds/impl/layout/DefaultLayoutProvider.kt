@@ -221,6 +221,9 @@ class DefaultLayoutProvider(
 
     private fun buildDefaultLandscapeLayout(width: Int, height: Int, insets: Insets, singleScreenComponent: LayoutComponent? = null): ScreenLayout {
         require(singleScreenComponent?.isScreen() != false) { "When specifying a single screen component, it must be a screen component" }
+        if (singleScreenComponent == null && getScreenFit() == ScreenFit.SINGLE_SCREEN) {
+            return buildLandscapeHandheldLayout(width, height, insets)
+        }
 
         val safeLeft = insets.left
         val safeTop = insets.top
@@ -264,6 +267,77 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(Rect(width / 2 - smallButtonsSize / 2, safeTop, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_MICROPHONE_TOGGLE),
                 // Small swap screens button in the top-right corner, below R
                 PositionedLayoutComponent(Rect(width - safeRight - smallButtonsSize, safeTop + lrButtonsSize + spacing4dp, smallButtonsSize, smallButtonsSize), LayoutComponent.BUTTON_SWAP_SCREENS),
+            )
+        )
+    }
+
+    /**
+     * Landscape layout for the "one screen + mini screen" fit, laid out like a handheld console: the main screen fills the height in the middle, with the
+     * controls in the columns on either side so that nothing covers the game. The left column holds L, the Blow button, the stick, and Select and Start. The
+     * right column holds the small screen window at the top, the swap button and R below it, and the action buttons.
+     */
+    private fun buildLandscapeHandheldLayout(width: Int, height: Int, insets: Insets): ScreenLayout {
+        val safeLeft = insets.left
+        val safeTop = insets.top
+        val safeRight = insets.right
+        val safeBottom = insets.bottom
+        val safeWidth = width - safeLeft - safeRight
+        val safeHeight = height - safeTop - safeBottom
+
+        val margin = screenUnitsConverter.dpToPixels(8f).toInt()
+        val lrButtonsSize = screenUnitsConverter.dpToPixels(50f).toInt()
+        val smallButtonsSize = screenUnitsConverter.dpToPixels(40f).toInt()
+        val minColumnWidth = screenUnitsConverter.dpToPixels(150f).toInt()
+        val maxMiniScreenWidth = screenUnitsConverter.dpToPixels(200f).toInt()
+
+        // The main screen fills the height, unless that leaves the side columns too narrow for the controls
+        var screenHeight = safeHeight
+        var screenWidth = (screenHeight * consoleAspectRatio).toInt()
+        if (safeWidth - screenWidth < minColumnWidth * 2) {
+            screenWidth = (safeWidth - minColumnWidth * 2).coerceAtLeast(safeWidth / 3)
+            screenHeight = (screenWidth / consoleAspectRatio).toInt()
+        }
+        val screenX = safeLeft + (safeWidth - screenWidth) / 2
+        val screenY = safeTop + (safeHeight - screenHeight) / 2
+        val columnWidth = (safeWidth - screenWidth) / 2 - margin * 2
+        val leftColumnX = safeLeft + margin
+        val rightColumnX = screenX + screenWidth + margin
+        val bottom = height - safeBottom - margin
+
+        // Right column: small screen window, then the swap button and R, then the action buttons
+        val miniScreenWidth = minOf(columnWidth, maxMiniScreenWidth)
+        val miniScreenHeight = (miniScreenWidth / consoleAspectRatio).toInt()
+        val miniScreenView = Rect(rightColumnX + columnWidth - miniScreenWidth, safeTop + margin, miniScreenWidth, miniScreenHeight)
+        val rightRowY = miniScreenView.bottom + margin
+        val swapView = Rect(rightColumnX, rightRowY + (lrButtonsSize - smallButtonsSize) / 2, smallButtonsSize, smallButtonsSize)
+        val rView = Rect(rightColumnX + columnWidth - lrButtonsSize, rightRowY, lrButtonsSize, lrButtonsSize)
+        val buttonsTop = rightRowY + lrButtonsSize + margin
+        val buttonsSize = minOf(screenUnitsConverter.dpToPixels(170f).toInt(), columnWidth, bottom - buttonsTop).coerceAtLeast(smallButtonsSize)
+        val buttonsView = Rect(rightColumnX + columnWidth - buttonsSize, bottom - buttonsSize, buttonsSize, buttonsSize)
+
+        // Left column: L and the Blow button, then the stick, then Select and Start
+        val lView = Rect(leftColumnX, safeTop + margin, lrButtonsSize, lrButtonsSize)
+        val blowView = Rect(leftColumnX + columnWidth - smallButtonsSize, safeTop + margin + lrButtonsSize / 2, smallButtonsSize, smallButtonsSize)
+        val startSelectY = bottom - smallButtonsSize
+        val selectView = Rect(leftColumnX, startSelectY, smallButtonsSize, smallButtonsSize)
+        val startView = Rect(leftColumnX + smallButtonsSize + margin * 2, startSelectY, smallButtonsSize, smallButtonsSize)
+        val stickAreaTop = blowView.bottom + margin
+        val stickAreaBottom = startSelectY - margin
+        val stickSize = minOf(screenUnitsConverter.dpToPixels(150f).toInt(), columnWidth, stickAreaBottom - stickAreaTop).coerceAtLeast(smallButtonsSize)
+        val stickView = Rect(leftColumnX + (columnWidth - stickSize) / 2, stickAreaTop + (stickAreaBottom - stickAreaTop - stickSize) / 2, stickSize, stickSize)
+
+        return ScreenLayout(
+            listOf(
+                PositionedLayoutComponent(miniScreenView, LayoutComponent.TOP_SCREEN, onTop = true),
+                PositionedLayoutComponent(Rect(screenX, screenY, screenWidth, screenHeight), LayoutComponent.BOTTOM_SCREEN),
+                PositionedLayoutComponent(stickView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
+                PositionedLayoutComponent(lView, LayoutComponent.BUTTON_L),
+                PositionedLayoutComponent(rView, LayoutComponent.BUTTON_R),
+                PositionedLayoutComponent(selectView, LayoutComponent.BUTTON_SELECT),
+                PositionedLayoutComponent(startView, LayoutComponent.BUTTON_START),
+                PositionedLayoutComponent(blowView, LayoutComponent.BUTTON_MICROPHONE_TOGGLE),
+                PositionedLayoutComponent(swapView, LayoutComponent.BUTTON_SWAP_SCREENS),
             )
         )
     }
