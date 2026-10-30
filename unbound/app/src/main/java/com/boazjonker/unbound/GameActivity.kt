@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -31,6 +32,7 @@ import com.boazjonker.unbound.ui.GameRenderer
 import com.boazjonker.unbound.ui.NightSkyView
 import com.boazjonker.unbound.ui.PlankButton
 import com.boazjonker.unbound.ui.Themed
+import com.boazjonker.unbound.ui.TunnelOverlayView
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -38,6 +40,12 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
     companion object {
         const val EXTRA_RESUME = "resume"
+        const val EXTRA_PORTAL = "portal"
+
+        // Three presses of the back button within this time open the options
+        private const val BACK_TAPS_WINDOW_MS = 1500L
+        // The tunnel keeps rushing at least this long before the game opens
+        private const val MIN_TUNNEL_MS = 900L
     }
 
     private lateinit var settings: Settings
@@ -49,6 +57,9 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
     private lateinit var menuOverlay: FrameLayout
     private lateinit var menuScroll: View
     private lateinit var banner: TextView
+    private lateinit var tunnel: TunnelOverlayView
+    private val backTaps = ArrayDeque<Long>()
+    private val createdAt = SystemClock.uptimeMillis()
     private val renderer = GameRenderer()
     private val emulator = Emulator { gameView.requestRender() }
     private val handler = Handler(Looper.getMainLooper())
@@ -85,10 +96,18 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
 
         buildViews()
         applySettings()
+        if (tunnel.darkness > 0f) {
+            // The controls pop in when the tunnel opens on the game
+            controls.alpha = 0f
+        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (menuOverlay.visibility == View.VISIBLE) closeMenu() else onMenu()
+                if (menuOverlay.visibility == View.VISIBLE) {
+                    closeMenu()
+                } else {
+                    onBackTap()
+                }
             }
         })
 
@@ -108,6 +127,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
                 if (!isResumedState) emulator.pause()
                 emulator.start()
                 handler.postDelayed(autosave, settings.autosaveMinutes.coerceAtLeast(1) * 60_000L)
+                openTunnel()
             }
         }.start()
     }
@@ -125,10 +145,16 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         controls = ControlsView(this).also { it.listener = this }
         banner = Themed.banner(this)
         menuOverlay = buildMenu()
+        tunnel = TunnelOverlayView(this)
 
         root.addView(sky, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         root.addView(gameView, FrameLayout.LayoutParams(1, 1))
         root.addView(controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        root.addView(tunnel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        if (intent.getBooleanExtra(EXTRA_PORTAL, false)) {
+            // Coming through the portal: the tunnel keeps rushing until the game is ready
+            tunnel.darkness = 1f
+        }
         root.addView(banner, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL or Gravity.TOP))
         root.addView(menuOverlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
@@ -209,6 +235,14 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         }
 
         add(Themed.plank(this, getString(R.string.menu_resume), primary = true) { closeMenu() })
+        val fastForwardButton = Themed.plank(this, "", getString(R.string.settings_fast_forward_button_hint)) {}
+        fastForwardButton.title = getString(R.string.settings_fast_forward_button, onOff(settings.isFastForwardButtonShown))
+        fastForwardButton.setOnClickListener {
+            settings.isFastForwardButtonShown = !settings.isFastForwardButtonShown
+            controls.isFastForwardShown = settings.isFastForwardButtonShown
+            fastForwardButton.title = getString(R.string.settings_fast_forward_button, onOff(settings.isFastForwardButtonShown))
+        }
+
         add(Themed.plank(this, getString(R.string.menu_save_state)) {
             emulator.runAndWait { NativeCore.saveState(files.slotState.path) }
             closeMenu()
@@ -224,6 +258,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             closeMenu()
             showBanner(getString(if (loaded) R.string.banner_state_loaded else R.string.banner_state_failed))
         })
+        add(fastForwardButton)
         val speed = Themed.plank(this, "") {}
         speed.title = getString(R.string.menu_speed, settings.fastForwardSpeed)
         speed.setOnClickListener {
@@ -269,15 +304,58 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         return overlay
     }
 
+    private fun onOff(value: Boolean) = getString(if (value) R.string.on else R.string.off)
+
     private fun applySettings() {
         renderer.filter = settings.screenFilter
         sky.isAnimated = settings.isBackgroundAnimated
         controls.isHapticsEnabled = settings.isHapticsEnabled
         controls.controlsAlpha = settings.controlsOpacity / 100f
+        controls.isFastForwardShown = settings.isFastForwardButtonShown
         emulator.volume = settings.volume / 100f
     }
 
-    override fun onMenu() {
+    /**
+     * The end of the portal transition: once the game has loaded, the tunnel opens on it and the controls pop in.
+     */
+    private fun openTunnel() {
+        if (tunnel.darkness <= 0f) {
+            showBackTipOnce()
+            return
+        }
+        val wait = (MIN_TUNNEL_MS - (SystemClock.uptimeMillis() - createdAt)).coerceAtLeast(0L)
+        handler.postDelayed({
+            tunnel.reveal {
+                controls.popIn()
+                showBackTipOnce()
+            }
+        }, wait)
+    }
+
+    private fun showBackTipOnce() {
+        if (settings.isBackTipShown) return
+        settings.isBackTipShown = true
+        Themed.showBanner(banner, getString(R.string.tip_back_button), safeInsets.top + 24 * resources.displayMetrics.density, holdMs = 4500)
+    }
+
+    /**
+     * The options open after three presses of the back button in quick succession, so a single press can't leave the game by accident.
+     */
+    private fun onBackTap() {
+        val now = SystemClock.uptimeMillis()
+        backTaps.addLast(now)
+        while (backTaps.isNotEmpty() && now - backTaps.first() > BACK_TAPS_WINDOW_MS) {
+            backTaps.removeFirst()
+        }
+        if (backTaps.size >= 3) {
+            backTaps.clear()
+            openMenu()
+        } else {
+            showBanner(resources.getQuantityString(R.plurals.banner_back_taps_left, 3 - backTaps.size, 3 - backTaps.size))
+        }
+    }
+
+    private fun openMenu() {
         if (!isLoaded) return
         controls.releaseAll()
         emulator.pause()
@@ -339,7 +417,7 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
             return true
         }
         if (event.keyCode == KeyEvent.KEYCODE_BUTTON_MODE || event.keyCode == KeyEvent.KEYCODE_BUTTON_L2) {
-            if (event.action == KeyEvent.ACTION_UP) onMenu()
+            if (event.action == KeyEvent.ACTION_UP) openMenu()
             return true
         }
         val key = keyForCode(event.keyCode)

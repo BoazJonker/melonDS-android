@@ -24,6 +24,11 @@ import kotlin.random.Random
  */
 class LogoView(context: Context) : View(context) {
 
+    private companion object {
+        const val SPIN_INTERVAL = 10f
+        const val SPIN_DURATION = 1.2f
+    }
+
     private val d = resources.displayMetrics.density
     private val startTime = SystemClock.uptimeMillis()
 
@@ -31,13 +36,6 @@ class LogoView(context: Context) : View(context) {
     private val mainText = "UNBOUND"
 
     private val dottedRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x59F2C14E }
-    private val insidePaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val goldRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val thinRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x99F2C14E.toInt() }
-    private val bandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.INK }
-    private val bandEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCCF2C14E.toInt() }
-    private val buttonRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val buttonInner = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Palette.GOLD_LIGHT }
     private val sparklePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.GOLD_LIGHT }
 
@@ -65,6 +63,44 @@ class LogoView(context: Context) : View(context) {
     private var galaxy: Bitmap? = null
 
     private val sparkle = Path()
+    private val coin = CoinPainter()
+
+    /**
+     * The medallion is hidden while the portal transition draws its own spinning copy on top.
+     */
+    var isMedallionVisible = true
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    /**
+     * Opacity of the POKÉMON UNBOUND title, faded out when the game starts.
+     */
+    var titleAlpha = 1f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    /**
+     * Centre and radius of the medallion's gold ring, in this view's coordinates.
+     */
+    val medallionCenterX get() = width / 2f
+    val medallionCenterY get() = height / 2f
+    val medallionRadius get() = radius
+
+    /**
+     * The coin spins once quickly every 10 seconds: a full turn in 1.2 seconds, speeding up and slowing down.
+     */
+    private fun coinRotation(t: Float): Float {
+        val cycle = t % SPIN_INTERVAL
+        val start = SPIN_INTERVAL - SPIN_DURATION
+        if (cycle < start) return 0f
+        val p = (cycle - start) / SPIN_DURATION
+        val eased = if (p < 0.5f) 4f * p * p * p else 1f - (-2f * p + 2f).let { it * it * it } / 2f
+        return eased * 360f
+    }
     private var mainSize = 0f
     private var radius = 0f
 
@@ -81,14 +117,6 @@ class LogoView(context: Context) : View(context) {
 
         dottedRing.strokeWidth = 1f * d
         dottedRing.pathEffect = DashPathEffect(floatArrayOf(3f * d, 7f * d), 0f)
-        insidePaint.shader = RadialGradient(cx, cy - radius * 0.2f, radius * 1.2f, 0xD93A2690.toInt(), 0xD9120A35.toInt(), Shader.TileMode.CLAMP)
-        val ringGradient = LinearGradient(0f, cy - radius, 0f, cy + radius, intArrayOf(Palette.GOLD_LIGHT, Palette.GOLD, Palette.GOLD_DARK), null, Shader.TileMode.CLAMP)
-        goldRing.shader = ringGradient
-        goldRing.strokeWidth = radius * 0.057f
-        thinRing.strokeWidth = 1.5f * d
-        buttonRing.shader = ringGradient
-        buttonRing.strokeWidth = radius * 0.036f
-        buttonInner.strokeWidth = 2f * d
 
         // Fit UNBOUND across the medallion, a little wider than it
         galaxyFill.textSize = 100f
@@ -175,6 +203,9 @@ class LogoView(context: Context) : View(context) {
 
         canvas.save()
         canvas.translate(0f, sin(t * 1.4f) * 2.5f * d)
+        if (titleAlpha < 1f) {
+            canvas.saveLayerAlpha(0f, 0f, w, h, (titleAlpha * 255).toInt())
+        }
 
         val topBaseline = cy - r * 0.42f
         canvas.drawText(topText, cx + topFill.textSize * 0.16f, topBaseline + 2f * d, topShadow)
@@ -199,6 +230,9 @@ class LogoView(context: Context) : View(context) {
             shimmer.shader.setLocalMatrix(shimmerMatrix)
             canvas.drawText(mainText, cx, baseline, shimmer)
         }
+        if (titleAlpha < 1f) {
+            canvas.restore()
+        }
         canvas.restore()
 
         postInvalidateDelayed(16)
@@ -210,19 +244,9 @@ class LogoView(context: Context) : View(context) {
         canvas.drawCircle(cx, cy, r * 1.13f, dottedRing)
         canvas.restore()
 
-        canvas.drawCircle(cx, cy, r, insidePaint)
-        canvas.drawCircle(cx, cy, r, goldRing)
-        canvas.drawCircle(cx, cy, r * 0.9f, thinRing)
-
-        val bandHalf = r * 0.05f
-        canvas.drawRect(cx - r, cy - bandHalf, cx + r, cy + bandHalf, bandPaint)
-        canvas.drawRect(cx - r, cy - bandHalf - 1f * d, cx + r, cy - bandHalf + 1f * d, bandEdge)
-        canvas.drawRect(cx - r, cy + bandHalf - 1f * d, cx + r, cy + bandHalf + 1f * d, bandEdge)
-
-        val buttonY = cy + r * 0.54f
-        canvas.drawCircle(cx, buttonY, r * 0.186f, bandPaint)
-        canvas.drawCircle(cx, buttonY, r * 0.186f, buttonRing)
-        canvas.drawCircle(cx, buttonY, r * 0.086f, buttonInner)
+        if (isMedallionVisible) {
+            coin.draw(canvas, cx, cy, r, coinRotation(t))
+        }
 
         canvas.drawCircle(cx - r * 1.13f, cy, 4f * d, dotPaint)
         canvas.drawCircle(cx + r * 1.13f, cy, 4f * d, dotPaint)

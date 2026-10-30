@@ -41,6 +41,20 @@ class Settings(context: Context) {
         set(value) = prefs.edit().putInt("volume", value).apply()
 
     /**
+     * Whether the fast-forward button shows next to L and R. Off by default; fast-forward stays available from a controller.
+     */
+    var isFastForwardButtonShown: Boolean
+        get() = prefs.getBoolean("fastForwardButton", false)
+        set(value) = prefs.edit().putBoolean("fastForwardButton", value).apply()
+
+    /**
+     * Whether the tip about opening the options with the back button has been shown.
+     */
+    var isBackTipShown: Boolean
+        get() = prefs.getBoolean("backTipShown", false)
+        set(value) = prefs.edit().putBoolean("backTipShown", value).apply()
+
+    /**
      * Minutes between automatic quick saves while playing, or 0 to only save when leaving the game.
      */
     var autosaveMinutes: Int

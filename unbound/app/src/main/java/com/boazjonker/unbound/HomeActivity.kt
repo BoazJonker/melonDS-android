@@ -1,5 +1,6 @@
 package com.boazjonker.unbound
 
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -24,6 +25,8 @@ import com.boazjonker.unbound.ui.LogoView
 import com.boazjonker.unbound.ui.NightSkyView
 import com.boazjonker.unbound.ui.Palette
 import com.boazjonker.unbound.ui.PlankButton
+import com.boazjonker.unbound.ui.PortalOverlayView
+import com.boazjonker.unbound.ui.TunnelOverlayView
 import com.boazjonker.unbound.ui.Themed
 import kotlin.math.min
 
@@ -37,6 +40,10 @@ class HomeActivity : ComponentActivity() {
     private lateinit var files: GameFiles
     private lateinit var content: LinearLayout
     private lateinit var banner: TextView
+    private lateinit var stage: FrameLayout
+    private lateinit var logo: LogoView
+    private lateinit var portal: PortalOverlayView
+    private lateinit var tunnel: TunnelOverlayView
     private var showingSettings = false
 
     private val pickRom = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { importRom(it) } }
@@ -50,7 +57,11 @@ class HomeActivity : ComponentActivity() {
         files = GameFiles(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        // The stage holds the whole start screen; the portal transition shakes it and pulls it into the portal. The tunnel and banner stay on top of it
+        val outer = FrameLayout(this)
         val root = FrameLayout(this)
+        stage = root
+        outer.addView(root, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         val sky = NightSkyView(this).apply { isAnimated = settings.isBackgroundAnimated }
         root.addView(sky, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
@@ -58,7 +69,7 @@ class HomeActivity : ComponentActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
         }
-        val logo = LogoView(this)
+        logo = LogoView(this)
         column.addView(logo, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         column.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -74,9 +85,14 @@ class HomeActivity : ComponentActivity() {
         ))
         column.setPadding(dp(20f), dp(32f), dp(20f), dp(28f))
 
+        portal = PortalOverlayView(this)
+        root.addView(portal, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        tunnel = TunnelOverlayView(this)
+        outer.addView(tunnel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
         banner = Themed.banner(this)
-        root.addView(banner, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL or Gravity.TOP))
-        setContentView(root)
+        outer.addView(banner, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL or Gravity.TOP))
+        setContentView(outer)
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
@@ -86,6 +102,9 @@ class HomeActivity : ComponentActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (portal.isPlaying) {
+                    return
+                }
                 if (showingSettings) {
                     showingSettings = false
                     refresh()
@@ -103,6 +122,12 @@ class HomeActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Back from the game: put the start screen back together
+        portal.reset()
+        tunnel.darkness = 0f
+        logo.isMedallionVisible = true
+        logo.titleAlpha = 1f
+        content.alpha = 1f
         refresh()
     }
 
@@ -230,6 +255,9 @@ class HomeActivity : ComponentActivity() {
         cycle({ getString(R.string.settings_haptics, onOff(settings.isHapticsEnabled)) }) {
             settings.isHapticsEnabled = !settings.isHapticsEnabled
         }
+        cycle({ getString(R.string.settings_fast_forward_button, onOff(settings.isFastForwardButtonShown)) }, getString(R.string.settings_fast_forward_button_hint)) {
+            settings.isFastForwardButtonShown = !settings.isFastForwardButtonShown
+        }
 
         addHeading(getString(R.string.settings_heading_game))
         cycle({ getString(R.string.settings_speed, settings.fastForwardSpeed) }) {
@@ -290,8 +318,40 @@ class HomeActivity : ComponentActivity() {
 
     private fun onOff(value: Boolean) = getString(if (value) R.string.on else R.string.off)
 
+    /**
+     * The portal transition: the ring spins and opens into a portal, an arm reaches out and pulls you in, and the game opens at the end of the tunnel.
+     */
     private fun startGame(resume: Boolean) {
-        startActivity(Intent(this, GameActivity::class.java).putExtra(GameActivity.EXTRA_RESUME, resume))
+        if (portal.isPlaying) return
+        val logoPosition = IntArray(2)
+        val stagePosition = IntArray(2)
+        logo.getLocationInWindow(logoPosition)
+        stage.getLocationInWindow(stagePosition)
+        val centerX = logoPosition[0] - stagePosition[0] + logo.medallionCenterX
+        val centerY = logoPosition[1] - stagePosition[1] + logo.medallionCenterY
+        tunnel.centerX = centerX
+        tunnel.centerY = centerY
+
+        logo.isMedallionVisible = false
+        ValueAnimator.ofFloat(1f, 0f).apply {
+            duration = 600
+            addUpdateListener { logo.titleAlpha = it.animatedValue as Float }
+            start()
+        }
+        content.animate().alpha(0f).setDuration(500).start()
+
+        portal.play(centerX, centerY, logo.medallionRadius, stage,
+            onDarken = { tunnel.darkness = it },
+            onPulled = {
+                startActivity(
+                    Intent(this, GameActivity::class.java)
+                        .putExtra(GameActivity.EXTRA_RESUME, resume)
+                        .putExtra(GameActivity.EXTRA_PORTAL, true)
+                )
+                @Suppress("DEPRECATION")
+                overridePendingTransition(0, 0)
+            },
+        )
     }
 
     private fun showBanner(text: String) {

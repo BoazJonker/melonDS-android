@@ -36,6 +36,8 @@
     <string name="settings_autosave">Quick save every %1$d min</string>
     <string name="settings_autosave_off">Quick save: when leaving only</string>
     <string name="settings_autosave_hint">For Continue. Your in-game saves are always kept</string>
+    <string name="settings_fast_forward_button">Fast-forward button: %1$s</string>
+    <string name="settings_fast_forward_button_hint">Shows a fast-forward button next to L and R</string>
     <string name="settings_change_rom">Change game file</string>
     <string name="settings_add_patch">Add Unbound patch</string>
     <string name="settings_add_patch_hint">.bps, .ups or .ips, applied to FireRed</string>
@@ -46,7 +48,7 @@
     <string name="settings_done">Done</string>
 
     <!-- In-game menu -->
-    <string name="menu_title">PAUSED</string>
+    <string name="menu_title">OPTIONS</string>
     <string name="menu_resume">Resume</string>
     <string name="menu_save_state">Save state</string>
     <string name="menu_load_state">Load state</string>
@@ -71,6 +73,12 @@
     <string name="banner_save_imported">Save file imported</string>
     <string name="banner_save_exported">Save file exported</string>
     <string name="banner_no_save">No save file yet. Save in the game first</string>
+
+    <string name="tip_back_button">Tip: tap your phone\'s back button 3 times to open the options</string>
+    <plurals name="banner_back_taps_left">
+        <item quantity="one">Tap back once more for the options</item>
+        <item quantity="other">Tap back %1$d more times for the options</item>
+    </plurals>
 
     <!-- Errors -->
     <string name="error_title">Oops!</string>

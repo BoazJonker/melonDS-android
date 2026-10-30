@@ -92,7 +92,7 @@ object Themed {
     /**
      * Slides the banner in from the top, shows [text] for a moment and slides it away.
      */
-    fun showBanner(banner: TextView, text: String, top: Float) {
+    fun showBanner(banner: TextView, text: String, top: Float, holdMs: Long = 1400) {
         banner.text = text
         banner.animate().cancel()
         banner.visibility = View.VISIBLE
@@ -105,7 +105,7 @@ object Themed {
             .setInterpolator(android.view.animation.OvershootInterpolator(2f))
             .setDuration(260)
             .withEndAction {
-                banner.animate().alpha(0f).translationY(top - banner.context.dp(20f)).setStartDelay(1400).setDuration(220)
+                banner.animate().alpha(0f).translationY(top - banner.context.dp(20f)).setStartDelay(holdMs).setDuration(220)
                     .withEndAction { banner.visibility = View.GONE; banner.animate().setStartDelay(0) }
                     .start()
             }
