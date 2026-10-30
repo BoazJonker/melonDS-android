@@ -183,10 +183,10 @@ class GameActivity : ComponentActivity(), ControlsView.Listener {
         val rect = RectF()
         if (h >= w) {
             val top = safeInsets.top + margin
-            var gameWidth = w - margin * 2
+            var gameWidth = w - 24f * density * 2
             var gameHeight = gameWidth / 1.5f
-            // Leave at least 55% of the screen for the controls
-            val maxHeight = h * 0.45f - top
+            // Leave about two thirds of the screen for the controls, so they have room
+            val maxHeight = h * 0.3f
             if (gameHeight > maxHeight) {
                 gameHeight = maxHeight
                 gameWidth = gameHeight * 1.5f

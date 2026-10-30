@@ -117,25 +117,24 @@ class ControlsView(context: Context) : View(context) {
     private fun layoutPortrait(w: Float, h: Float) {
         val top = gameRect.bottom
         val areaHeight = h - top
-        // Scale everything to the space below the screen
-        val s = min(w, areaHeight * 1.45f)
-        val cx = w / 2f
-        val margin = s * 0.05f
+        // Sizes follow the width, but shrink when the space under the screen is short; everything is spread over that space
+        val s = min(w, areaHeight * 0.67f)
+        val left = (w - s) / 2f
+        fun x(fraction: Float) = left + s * fraction
+        fun y(fraction: Float) = top + areaHeight * fraction
 
-        place(l, s * 0.3f, s * 0.1f, margin + s * 0.15f, top + margin + s * 0.06f)
-        place(r, s * 0.3f, s * 0.1f, w - margin - s * 0.15f, top + margin + s * 0.06f)
-        place(fastForward, s * 0.1f, 0f, cx, top + margin + s * 0.06f)
+        place(l, s * 0.31f, s * 0.1f, x(0.215f), y(0.1f))
+        place(r, s * 0.31f, s * 0.1f, x(0.785f), y(0.1f))
+        place(fastForward, s * 0.1f, 0f, x(0.5f), y(0.1f))
 
-        val middle = top + areaHeight * 0.42f
-        dpad.layout(s * 0.36f)
-        dpadX = margin + s * 0.24f
-        dpadY = middle
-        placeRound(a, s * 0.2f, w - margin - s * 0.13f, middle - s * 0.07f)
-        placeRound(b, s * 0.2f, w - margin - s * 0.35f, middle + s * 0.1f)
+        dpad.layout(s * 0.385f)
+        dpadX = x(0.26f)
+        dpadY = y(0.43f)
+        placeRound(a, s * 0.21f, x(0.84f), y(0.37f))
+        placeRound(b, s * 0.21f, x(0.626f), y(0.53f))
 
-        val bottomY = min(h - margin - s * 0.05f, middle + maxOf(s * 0.3f, areaHeight * 0.3f))
-        place(select, s * 0.19f, s * 0.075f, cx - s * 0.12f, bottomY)
-        place(start, s * 0.19f, s * 0.075f, cx + s * 0.12f, bottomY)
+        place(select, s * 0.21f, s * 0.082f, x(0.372f), y(0.76f))
+        place(start, s * 0.21f, s * 0.082f, x(0.628f), y(0.76f))
     }
 
     private fun layoutLandscape(w: Float, h: Float) {
@@ -345,6 +344,6 @@ class ControlsView(context: Context) : View(context) {
     }
 
     private companion object {
-        const val DPAD_TILT = 20f
+        const val DPAD_TILT = 16f
     }
 }

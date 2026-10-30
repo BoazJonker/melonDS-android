@@ -1,6 +1,5 @@
 package com.boazjonker.unbound.ui
 
-import android.graphics.Camera
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Matrix
@@ -125,28 +124,58 @@ class AbButtonPainter(private val letter: String) {
 }
 
 /**
- * The D-pad: a purple metal cross on a thick, stepped gold body, with bevelled edges, a gold outline, arms that slope down into a sunken centre pivot and
- * raised gold arrows. It sits in a deep socket with a gold rim and tips toward the pressed direction like a real rocker pad. Drawn around (0, 0).
+ * The D-pad, drawn as a real 3D block: a cross-shaped slab of purple metal on thick gold side walls, seen from slightly below so the walls show. The top
+ * has bevelled edges, a gold outline, arms that slope down into a sunken pivot and raised gold arrows. When pressed, the whole block rocks toward that arm
+ * and dips into its gold-rimmed socket. The corners of the block are turned and projected in 3D, so its walls and top keep their true perspective.
  */
 class DpadPainter {
+
+    private companion object {
+        // Half the width of an arm and half the length of the cross, in the 150-wide design
+        const val ARM = 28f
+        const val END = 75f
+        const val THICKNESS = 18f
+        // Distance of the eye from the pad, in design units
+        const val EYE = 520f
+        // The pad is seen from slightly below, so its lower walls show
+        const val BASE_PITCH = 24f
+    }
 
     /** Width of the cross. */
     var size = 0f
         private set
 
-    private val camera = Camera()
-    private val matrix = Matrix()
+    private val corners = floatArrayOf(
+        -ARM, -END, ARM, -END, ARM, -ARM, END, -ARM, END, ARM, ARM, ARM,
+        ARM, END, -ARM, END, -ARM, ARM, -END, ARM, -END, -ARM, -ARM, -ARM,
+    )
+    private val top = FloatArray(24)
+    private val bottom = FloatArray(24)
+    private val topZ = FloatArray(12)
+    private val bottomZ = FloatArray(12)
+    private val square = FloatArray(8)
+    private val squareSource = FloatArray(8)
+    private val faceMatrix = Matrix()
+    private val rotated = FloatArray(3)
+
+    private class Wall(var index: Int = 0, var depth: Float = 0f, var shade: Float = 0f)
+    private val walls = Array(12) { Wall() }
+    private val visibleWalls = ArrayList<Wall>(12)
+
     private val cross = Path()
     private val innerLine = Path()
     private val arrows = Path()
     private val scaled = Matrix()
+    private val polygon = Path()
 
     private val socketPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val socketRimDark = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFF8C5E10.toInt() }
     private val socketRim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Palette.GOLD }
     private val socketInnerRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x80F2C14E.toInt() }
-    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x73000000 }
-    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x80000000.toInt() }
+    private val backPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF3E2604.toInt() }
+    private val wallPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val wallEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x593E2604; strokeJoin = Paint.Join.ROUND }
     private val facePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val dishPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val bevelLight = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND }
@@ -162,50 +191,54 @@ class DpadPainter {
     private val shadePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x59000000 }
     private val gloss = RectF()
 
-    private val bodyColours = intArrayOf(
-        0xFF3E2604.toInt(), 0xFF4F3107.toInt(), 0xFF6B4510.toInt(), 0xFF845612.toInt(), 0xFFA06A14.toInt(), 0xFFBE8420.toInt(), 0xFFD9A030.toInt(),
-    )
-
     private var unit = 0f
     private var socketRadius = 0f
 
-    /**
-     * The cross path and its parts come from the 150x150 design, centred on (75, 75), scaled to [size].
-     */
     fun layout(size: Float) {
         this.size = size
-        unit = size / 142f
-        socketRadius = 84f * unit
+        unit = size / 150f
+        socketRadius = 88f * unit
 
         scaled.setTranslate(-75f, -75f)
         scaled.postScale(unit, unit)
         cross.reset()
-        cross.addPath(roundedCross(), scaled)
+        for (i in 0 until 12) {
+            val x = corners[i * 2] * unit
+            val y = corners[i * 2 + 1] * unit
+            if (i == 0) cross.moveTo(x, y) else cross.lineTo(x, y)
+        }
+        cross.close()
         innerLine.reset()
         innerLine.addPath(Path().apply {
-            moveTo(56f, 12f); lineTo(94f, 12f); lineTo(94f, 54f); lineTo(136f, 54f); lineTo(136f, 96f); lineTo(94f, 96f); lineTo(94f, 138f)
-            lineTo(56f, 138f); lineTo(56f, 96f); lineTo(14f, 96f); lineTo(14f, 54f); lineTo(56f, 54f); close()
+            moveTo(55f, 9f); lineTo(95f, 9f); lineTo(95f, 55f); lineTo(141f, 55f); lineTo(141f, 95f); lineTo(95f, 95f); lineTo(95f, 141f)
+            lineTo(55f, 141f); lineTo(55f, 95f); lineTo(9f, 95f); lineTo(9f, 55f); lineTo(55f, 55f); close()
         }, scaled)
         arrows.reset()
         arrows.addPath(Path().apply {
-            moveTo(75f, 13f); lineTo(86f, 30f); lineTo(64f, 30f); close()
-            moveTo(75f, 137f); lineTo(86f, 120f); lineTo(64f, 120f); close()
-            moveTo(13f, 75f); lineTo(30f, 64f); lineTo(30f, 86f); close()
-            moveTo(137f, 75f); lineTo(120f, 64f); lineTo(120f, 86f); close()
+            moveTo(75f, 11f); lineTo(86f, 28f); lineTo(64f, 28f); close()
+            moveTo(75f, 139f); lineTo(86f, 122f); lineTo(64f, 122f); close()
+            moveTo(11f, 75f); lineTo(28f, 64f); lineTo(28f, 86f); close()
+            moveTo(139f, 75f); lineTo(122f, 64f); lineTo(122f, 86f); close()
         }, scaled)
 
-        val half = 71f * unit
+        val half = END * unit
+        squareSource[0] = -half; squareSource[1] = -half
+        squareSource[2] = half; squareSource[3] = -half
+        squareSource[4] = half; squareSource[5] = half
+        squareSource[6] = -half; squareSource[7] = half
+
         socketPaint.shader = RadialGradient(0f, -socketRadius * 0.2f, socketRadius, 0xFF241A44.toInt(), 0xFF07040F.toInt(), Shader.TileMode.CLAMP)
         socketRimDark.strokeWidth = 3f * unit
         socketRim.strokeWidth = 2f * unit
         socketInnerRing.strokeWidth = 1.5f * unit
+        wallEdge.strokeWidth = 1f * unit
         facePaint.shader = LinearGradient(0f, -half, 0f, half, intArrayOf(0xFF7461B8.toInt(), 0xFF3A2C72.toInt(), 0xFF1A1140.toInt()), null, Shader.TileMode.CLAMP)
         dishPaint.shader = RadialGradient(0f, 0f, half, intArrayOf(0x80000000.toInt(), 0x24000000, 0x00000000), floatArrayOf(0f, 0.35f, 0.7f), Shader.TileMode.CLAMP)
         bevelLight.shader = LinearGradient(-half, -half, half, half, intArrayOf(0x99FFFFFF.toInt(), 0x00FFFFFF), floatArrayOf(0f, 0.45f), Shader.TileMode.CLAMP)
         bevelLight.strokeWidth = 14f * unit
         bevelDark.shader = LinearGradient(-half, -half, half, half, intArrayOf(0x00000000, 0x99000000.toInt()), floatArrayOf(0.55f, 1f), Shader.TileMode.CLAMP)
         bevelDark.strokeWidth = 14f * unit
-        gloss.set(-58f * unit, -75f * unit, 58f * unit, -27f * unit)
+        gloss.set(-60f * unit, -75f * unit, 60f * unit, -27f * unit)
         glossPaint.shader = LinearGradient(0f, gloss.top, 0f, gloss.bottom, 0x6BFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
         outlinePaint.shader = LinearGradient(-half, -half, half, half, intArrayOf(0xFFFFF6D0.toInt(), Palette.GOLD, 0xFF8C5E10.toInt()), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
         outlinePaint.strokeWidth = 3.5f * unit
@@ -216,11 +249,27 @@ class DpadPainter {
         arrowEdge.strokeWidth = 0.8f * unit
     }
 
-    private fun roundedCross(): Path {
-        val vertical = Path().apply { addRoundRect(46f, 4f, 104f, 146f, 4f, 4f, Path.Direction.CW) }
-        val horizontal = Path().apply { addRoundRect(4f, 46f, 146f, 104f, 4f, 4f, Path.Direction.CW) }
-        vertical.op(horizontal, Path.Op.UNION)
-        return vertical
+    private var sinPitch = 0f
+    private var cosPitch = 1f
+    private var sinYaw = 0f
+    private var cosYaw = 1f
+
+    /** Turns a point of the pad (design units, z toward the eye) into [rotated]. */
+    private fun rotate(x: Float, y: Float, z: Float) {
+        // Pitch: positive pushes the top arm away
+        val y1 = y * cosPitch - z * sinPitch
+        val z1 = y * sinPitch + z * cosPitch
+        // Yaw: positive pushes the right arm away
+        rotated[0] = x * cosYaw + z1 * sinYaw
+        rotated[1] = y1
+        rotated[2] = -x * sinYaw + z1 * cosYaw
+    }
+
+    /** Projects [rotated] onto the screen, into [out] at [index]. */
+    private fun project(out: FloatArray, index: Int) {
+        val scale = EYE / (EYE - rotated[2]) * unit
+        out[index] = rotated[0] * scale
+        out[index + 1] = rotated[1] * scale
     }
 
     /**
@@ -233,40 +282,87 @@ class DpadPainter {
         canvas.save()
         canvas.translate(cx, cy)
 
-        // Deep socket with a gold rim; it does not tilt
-        canvas.drawCircle(0f, 4f * unit, socketRadius, socketPaint)
-        canvas.drawCircle(0f, 4f * unit, socketRadius + 1.5f * unit, socketRimDark)
-        canvas.drawCircle(0f, 4f * unit, socketRadius + 3.5f * unit, socketRim)
-        canvas.drawCircle(0f, 6f * unit, socketRadius - 6f * unit, socketInnerRing)
+        // Deep socket with a gold rim; it does not move
+        canvas.drawCircle(0f, 6f * unit, socketRadius, socketPaint)
+        canvas.drawCircle(0f, 6f * unit, socketRadius + 1.5f * unit, socketRimDark)
+        canvas.drawCircle(0f, 6f * unit, socketRadius + 3.5f * unit, socketRim)
+        canvas.drawCircle(0f, 8f * unit, socketRadius - 6f * unit, socketInnerRing)
 
-        camera.save()
-        camera.setLocation(0f, 0f, -size * 2.6f / 72f)
-        camera.rotateX(tiltX)
-        camera.rotateY(-tiltY)
-        camera.getMatrix(matrix)
-        camera.restore()
-        canvas.translate(0f, 2f * unit * sink)
-        canvas.concat(matrix)
+        val pitch = Math.toRadians((BASE_PITCH + tiltX).toDouble())
+        val yaw = Math.toRadians(tiltY.toDouble())
+        sinPitch = kotlin.math.sin(pitch).toFloat()
+        cosPitch = kotlin.math.cos(pitch).toFloat()
+        sinYaw = kotlin.math.sin(yaw).toFloat()
+        cosYaw = kotlin.math.cos(yaw).toFloat()
+        val dip = -5f * sink
 
-        // Soft shadow, then the gold body in steps from dark to light
-        canvas.save()
-        canvas.translate(5f * unit, 18f * unit)
-        canvas.drawPath(cross, shadowPaint)
-        canvas.restore()
-        for ((index, colour) in bodyColours.withIndex()) {
-            canvas.save()
-            canvas.translate(0f, (14f - index * 2f) * unit)
-            bodyPaint.color = colour
-            canvas.drawPath(cross, bodyPaint)
-            canvas.restore()
+        for (i in 0 until 12) {
+            val x = corners[i * 2]
+            val y = corners[i * 2 + 1]
+            rotate(x, y, dip)
+            topZ[i] = rotated[2]
+            project(top, i * 2)
+            rotate(x, y, dip - THICKNESS)
+            bottomZ[i] = rotated[2]
+            project(bottom, i * 2)
         }
+
+        // Shadow in the socket, then the back of the block
+        polygonOf(bottom)
+        canvas.save()
+        canvas.translate(4f * unit, 10f * unit)
+        canvas.drawPath(polygon, shadowPaint)
+        canvas.restore()
+        canvas.drawPath(polygon, backPaint)
+
+        // Side walls that face the eye, farthest first, shaded by how much they face the light (from the top left, in front)
+        visibleWalls.clear()
+        for (i in 0 until 12) {
+            val j = (i + 1) % 12
+            val dx = corners[j * 2] - corners[i * 2]
+            val dy = corners[j * 2 + 1] - corners[i * 2 + 1]
+            val length = kotlin.math.hypot(dx, dy)
+            rotate(dy / length, -dx / length, 0f)
+            val nx = rotated[0]
+            val ny = rotated[1]
+            val nz = rotated[2]
+            val mx = (corners[i * 2] + corners[j * 2]) / 2f
+            val my = (corners[i * 2 + 1] + corners[j * 2 + 1]) / 2f
+            rotate(mx, my, dip - THICKNESS / 2f)
+            val facing = -rotated[0] * nx - rotated[1] * ny + (EYE - rotated[2]) * nz
+            if (facing <= 0f) continue
+            val light = (-0.4f * nx - 0.7f * ny + 0.6f * nz).coerceAtLeast(0f)
+            visibleWalls += walls[i].apply { index = i; depth = rotated[2]; shade = 0.3f + 0.7f * light }
+        }
+        visibleWalls.sortBy { it.depth }
+        for (wall in visibleWalls) {
+            val i = wall.index
+            val j = (i + 1) % 12
+            polygon.reset()
+            polygon.moveTo(top[i * 2], top[i * 2 + 1])
+            polygon.lineTo(top[j * 2], top[j * 2 + 1])
+            polygon.lineTo(bottom[j * 2], bottom[j * 2 + 1])
+            polygon.lineTo(bottom[i * 2], bottom[i * 2 + 1])
+            polygon.close()
+            wallPaint.color = goldShade(wall.shade)
+            canvas.drawPath(polygon, wallPaint)
+            canvas.drawPath(polygon, wallEdge)
+        }
+
+        // The top face, mapped onto its tilted plane
+        for (k in 0 until 4) {
+            rotate(squareSource[k * 2] / unit, squareSource[k * 2 + 1] / unit, dip)
+            project(square, k * 2)
+        }
+        faceMatrix.setPolyToPoly(squareSource, 0, square, 0, 4)
+        canvas.concat(faceMatrix)
 
         canvas.drawPath(cross, facePaint)
         canvas.save()
         canvas.clipPath(cross)
         canvas.drawPath(cross, dishPaint)
-        val end = 71f * unit
-        val arm = 29f * unit
+        val end = END * unit
+        val arm = ARM * unit
         if (pressedDirections and 1 != 0) canvas.drawRect(-arm, -end, arm, -arm, shadePaint)
         if (pressedDirections and 2 != 0) canvas.drawRect(-arm, arm, arm, end, shadePaint)
         if (pressedDirections and 4 != 0) canvas.drawRect(-end, -arm, -arm, arm, shadePaint)
@@ -289,5 +385,23 @@ class DpadPainter {
         canvas.drawPath(arrows, arrowEdge)
 
         canvas.restore()
+    }
+
+    private fun polygonOf(points: FloatArray) {
+        polygon.reset()
+        for (i in 0 until 12) {
+            if (i == 0) polygon.moveTo(points[0], points[1]) else polygon.lineTo(points[i * 2], points[i * 2 + 1])
+        }
+        polygon.close()
+    }
+
+    /** Gold from dark bronze (0) to bright (1). */
+    private fun goldShade(t: Float): Int {
+        val dark = intArrayOf(0x5E, 0x3B, 0x08)
+        val light = intArrayOf(0xFF, 0xE3, 0x9A)
+        val r = (dark[0] + (light[0] - dark[0]) * t).toInt()
+        val g = (dark[1] + (light[1] - dark[1]) * t).toInt()
+        val b = (dark[2] + (light[2] - dark[2]) * t).toInt()
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 }
