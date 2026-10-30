@@ -10,8 +10,8 @@ import android.graphics.RectF
 import android.graphics.Shader
 
 /**
- * Draws the gold medallion as a 3D coin: a thick gold ring (darker layers behind it give it depth), with a violet inside, the dark band of a Poké Ball and
- * its ringed button. It can be turned around its vertical axis, like a coin spinning on a table.
+ * Draws the gold medallion as a 3D coin: a thick gold ring (darker layers behind it give it depth), with a violet inside and the dark band of a Poké
+ * Ball. It can be turned around its vertical axis, like a coin spinning on a table.
  */
 class CoinPainter {
 
@@ -27,8 +27,6 @@ class CoinPainter {
     private val thinRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x99F2C14E.toInt() }
     private val bandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.INK }
     private val bandEdgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCCF2C14E.toInt() }
-    private val buttonRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val buttonInnerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Palette.GOLD_LIGHT }
     private val arc = RectF()
 
     private var shadersFor = -1f
@@ -40,13 +38,12 @@ class CoinPainter {
         shadersFor = r
         // Shaders are built around (0, 0), the coin is drawn translated
         ringPaint.shader = LinearGradient(0f, -r, 0f, r, intArrayOf(Palette.GOLD_LIGHT, Palette.GOLD, Palette.GOLD_DARK), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
-        buttonRingPaint.shader = ringPaint.shader
         insidePaint.shader = RadialGradient(0f, -r * 0.2f, r * 1.2f, 0xE63A2690.toInt(), 0xE6120A35.toInt(), Shader.TileMode.CLAMP)
     }
 
     /**
      * @param rotationY Turn around the vertical axis, in degrees
-     * @param faceAlpha Opacity of the inside, band and button (0 to 1); the ring alone stays when it is 0
+     * @param faceAlpha Opacity of the inside and band (0 to 1); the ring alone stays when it is 0
      * @param glow Extra gold glow around the ring, 0 to 1
      */
     fun draw(canvas: Canvas, cx: Float, cy: Float, r: Float, rotationY: Float, faceAlpha: Float = 1f, glow: Float = 0f) {
@@ -81,14 +78,6 @@ class CoinPainter {
                 canvas.drawRect(-r + ringWidth * 0.5f, -bandHalf, r - ringWidth * 0.5f, bandHalf, bandPaint)
                 canvas.drawRect(-r + ringWidth * 0.5f, -bandHalf - r * 0.008f, r - ringWidth * 0.5f, -bandHalf + r * 0.008f, bandEdgePaint)
                 canvas.drawRect(-r + ringWidth * 0.5f, bandHalf - r * 0.008f, r - ringWidth * 0.5f, bandHalf + r * 0.008f, bandEdgePaint)
-                val buttonY = r * 0.62f
-                canvas.drawCircle(0f, buttonY, r * 0.2f, bandPaint)
-                buttonRingPaint.alpha = alpha
-                buttonRingPaint.strokeWidth = r * 0.04f
-                canvas.drawCircle(0f, buttonY, r * 0.2f, buttonRingPaint)
-                buttonInnerPaint.alpha = alpha
-                buttonInnerPaint.strokeWidth = r * 0.016f
-                canvas.drawCircle(0f, buttonY, r * 0.09f, buttonInnerPaint)
             }
         }
 
