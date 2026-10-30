@@ -138,120 +138,196 @@ class PortalPainter {
 }
 
 /**
- * A giant hand seen palm-first, as if reaching straight at you: a galaxy-purple palm with a glowing gem, and fingers made of two gold-trimmed galaxy
- * plates each, joined by a glowing teal joint and ending in a long crystal claw. Drawn in a 400 x 420 design space; the centre of the palm is at
- * ([PALM_X], [PALM_Y]).
+ * A clawed creature hand reaching out of the portal, seen palm-first: scaly galaxy skin edged in bronze-gold, thick fingers with gold-tipped spikes on the
+ * knuckles, glowing teal joints and hooked crystal talons, dark pads on the palm with glowing veins, and a slit-pupilled eye in the middle of the palm.
+ *
+ * It is drawn around the centre of the palm, in design units (the palm is 264 wide). Each finger bends toward the viewer at its two joints; a bend is drawn
+ * by shortening the segment as it turns, and past a right angle the segment folds back over the palm.
  */
 class HandPainter {
 
-    companion object {
-        const val PALM_X = 200f
-        const val PALM_Y = 254f
-        const val WIDTH = 400f
-    }
+    private class Finger(val x: Float, val y: Float, val angle: Float, val scale: Float, val spikes: FloatArray)
 
-    // Where each finger joins the palm: x, y, angle and size. The last one is the thumb
     private val fingers = arrayOf(
-        floatArrayOf(158f, 186f, -26f, 1f),
-        floatArrayOf(196f, 174f, -6f, 1.06f),
-        floatArrayOf(234f, 182f, 14f, 1f),
-        floatArrayOf(264f, 204f, 34f, 0.85f),
-        floatArrayOf(142f, 264f, -76f, 0.9f),
+        Finger(-84f, -104f, -20f, 1f, floatArrayOf(-14f, 10f)),
+        Finger(-28f, -112f, -6f, 1.08f, floatArrayOf(-14f, 10f)),
+        Finger(28f, -110f, 7f, 1f, floatArrayOf(-14f, 10f)),
+        Finger(84f, -96f, 21f, 0.88f, floatArrayOf(-14f, 10f)),
+        // Thumb
+        Finger(-124f, -6f, -68f, 0.92f, floatArrayOf(-2f)),
     )
-    private val lowerPlate = RectF(-19f, -74f, 19f, 6f)
-    private val upperPlate = RectF(-16f, -142f, 16f, -70f)
-    private val claw = PathParser.createPathFromPathData("M-13 -136 Q-15 -180 0 -212 Q15 -180 13 -136 Z")
-    private val palm = PathParser.createPathFromPathData("M140 190 Q200 160 262 192 Q296 250 266 312 Q200 344 136 312 Q106 252 140 190 Z")
-    private val crease = PathParser.createPathFromPathData("M150 214 Q200 196 252 216")
+    private val lowerSegment = RectF(-26f, -96f, 26f, 0f)
+    private val upperSegment = RectF(-22f, -80f, 22f, 0f)
+    private val talon = PathParser.createPathFromPathData("M-14 0 L-15 -25 L-11 -50 L-4 -72 L4 -84 L8 -79 L3 -66 L1 -46 L4 -24 L14 0 Z")
+    private val spike = PathParser.createPathFromPathData("M-8 0 L0 -24 L8 0 Z")
+    private val palm = PathParser.createPathFromPathData("M-132 -18 Q-132 -116 0 -116 Q132 -116 132 -18 Q132 128 0 128 Q-132 128 -132 -18 Z")
+    private val veins = PathParser.createPathFromPathData(
+        "M0 124 C-6 94 -36 80 -72 62 M0 124 C8 98 44 84 76 68 M-72 62 C-84 44 -88 24 -96 4 M76 68 C88 50 94 30 98 10"
+    )
+    private val pads = arrayOf(
+        RectF(-104f, -96f, -60f, -62f), RectF(-50f, -104f, -4f, -68f), RectF(6f, -102f, 52f, -66f), RectF(58f, -88f, 98f, -56f),
+    )
+    private val eyeOval = RectF(-46f, -28f, 46f, 28f)
+    private val pupil = RectF(-7f, -24f, 7f, 24f)
 
-    private val galaxyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val goldTrim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-        strokeJoin = Paint.Join.ROUND
-        shader = LinearGradient(0f, -150f, 0f, 0f, intArrayOf(0xFFFFF6D0.toInt(), Palette.GOLD, 0xFF8C5E10.toInt()), null, Shader.TileMode.MIRROR)
+    private val skin = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val trim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 4f; strokeJoin = Paint.Join.ROUND; color = 0xFFC8901E.toInt() }
+    private val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 16f; strokeJoin = Paint.Join.ROUND; color = 0x4046F0C8 }
+    private val bend = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val joint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val jointGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x6646F0C8 }
+    private val talonPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = LinearGradient(0f, 0f, 0f, -84f, intArrayOf(0xFF0E3F3A.toInt(), 0xFF1F8C7A.toInt(), Palette.AURORA_TEAL, 0xFFF0FFFB.toInt()), floatArrayOf(0f, 0.3f, 0.7f, 1f), Shader.TileMode.CLAMP)
     }
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 16f
-        strokeJoin = Paint.Join.ROUND
-        color = 0x4D46F0C8
+    private val talonEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.5f; color = 0xFF0A2E2A.toInt(); strokeJoin = Paint.Join.ROUND }
+    private val spikePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = LinearGradient(0f, 0f, 0f, -24f, intArrayOf(0xFF3B2390.toInt(), 0xFF8C5E10.toInt(), 0xFFFFE39A.toInt()), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP)
     }
-    private val jointPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xD946F0C8.toInt() }
-    private val clawPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        shader = LinearGradient(0f, -136f, 0f, -212f, intArrayOf(0xFF1F6E66.toInt(), Palette.AURORA_TEAL, 0xFFF0FFFB.toInt()), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+    private val padPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE6120A30.toInt() }
+    private val bigPad = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = RadialGradient(-6f, -6f, 70f, 0xFF3A2A6E.toInt(), 0xFF0E0826.toInt(), Shader.TileMode.CLAMP)
     }
-    private val clawEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.5f; color = 0xFF0F3F3A.toInt() }
-    private val palmShade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        shader = RadialGradient(PALM_X, 240f, 110f, intArrayOf(0x00000000, 0x00000000, 0x73000000), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+    private val veinGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 9f; strokeCap = Paint.Cap.ROUND; color = 0x4046F0C8 }
+    private val veinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2.4f; strokeCap = Paint.Cap.ROUND; color = 0xC046F0C8.toInt() }
+    private val eyeRingDark = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.INK }
+    private val eyeRingGold = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFC8901E.toInt() }
+    private val eyeGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x66F2C14E }
+    private val eyePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = RadialGradient(0f, 0f, 46f, intArrayOf(0xFFFFF6C0.toInt(), Palette.GOLD, Palette.AURORA_TEAL, 0xFF0E3F3A.toInt()), floatArrayOf(0f, 0.35f, 0.7f, 1f), Shader.TileMode.CLAMP)
     }
-    private val palmTrim = Paint(goldTrim).apply { strokeWidth = 5f }
-    private val creasePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2f; color = 0x59CFFFF2; strokeCap = Paint.Cap.ROUND }
-    private val gemSocket = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.INK }
-    private val gemPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        shader = RadialGradient(193f, 248f, 20f, intArrayOf(0xFFFFFFFF.toInt(), 0xFF9FFFE6.toInt(), 0xFF1F8C7A.toInt()), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
-    }
-    private val mistPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        shader = RadialGradient(PALM_X, 350f, 80f, 0xB39C7BFF.toInt(), 0x009C7BFF, Shader.TileMode.CLAMP)
-    }
+    private val pupilPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF05030C.toInt() }
+    private val shinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xD9FFFFFF.toInt() }
+    private val eyeClip = Path()
 
     init {
-        val bitmap = Bitmap.createBitmap(400, 420, Bitmap.Config.ARGB_8888)
+        // Scaly galaxy skin: deep violet with nebulae and stars, covered in rows of overlapping scales
+        val bitmap = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.drawColor(0xFF3B2390.toInt())
+        canvas.drawColor(0xFF2C1870.toInt())
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        paint.shader = RadialGradient(140f, 126f, 250f, 0xFFC79BFF.toInt(), 0x00C79BFF, Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, 400f, 420f, paint)
-        paint.shader = RadialGradient(280f, 273f, 200f, 0xB346F0C8.toInt(), 0x0046F0C8, Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, 400f, 420f, paint)
+        paint.shader = RadialGradient(96f, 64f, 200f, 0xFFA57BFF.toInt(), 0x00A57BFF, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, 320f, 320f, paint)
+        paint.shader = RadialGradient(240f, 240f, 170f, 0x7346F0C8, 0x0046F0C8, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, 320f, 320f, paint)
         paint.shader = null
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 1.6f
+        paint.color = 0x61050310
+        var row = 0
+        var y = 0f
+        while (y < 330f) {
+            var x = if (row % 2 == 0) 0f else 7f
+            while (x < 330f) {
+                canvas.drawArc(x - 7f, y - 7f, x + 7f, y + 7f, 0f, 180f, false, paint)
+                x += 14f
+            }
+            y += 9f
+            row++
+        }
+        paint.style = Paint.Style.FILL
         paint.color = Palette.WHITE
         val random = Random(9)
-        repeat(90) {
+        repeat(80) {
             paint.alpha = 120 + random.nextInt(136)
-            canvas.drawCircle(random.nextFloat() * 400f, random.nextFloat() * 420f, 0.6f + random.nextFloat() * 1.3f, paint)
+            canvas.drawCircle(random.nextFloat() * 320f, random.nextFloat() * 320f, 0.6f + random.nextFloat() * 1.2f, paint)
         }
-        galaxyPaint.shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        skin.shader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+        joint.shader = RadialGradient(-2f, -2f, 10f, intArrayOf(0xFFE6FFF8.toInt(), Palette.AURORA_TEAL, 0xFF1F8C7A.toInt()), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+        eyeClip.addOval(eyeOval, Path.Direction.CW)
     }
 
     /**
-     * Draws the hand in its design space; the caller sets up the transform.
+     * Draws the hand around the centre of its palm, in design units; the caller sets up the transform.
      *
-     * @param fold How far the fingers have folded over the palm: 0 spread, 1 closed
-     * @param stretch Extra length of the fingers, for flexing
-     * @param gemGlow 0 to 1
+     * @param lowerBend How far the lower finger segments bend toward the viewer, in degrees
+     * @param upperBend Extra bend of the upper segments
+     * @param talonBend Extra bend of the talons
+     * @param lid How open the eye is, 0 to 1
+     * @param pupilWidth Width of the slit pupil, 0 to 1
      */
-    fun draw(canvas: Canvas, fold: Float, stretch: Float, gemGlow: Float) {
-        canvas.drawOval(PALM_X - 70f, 300f, PALM_X + 70f, 400f, mistPaint)
-        val foldScale = lerp(1f + stretch * 0.06f, -0.38f, fold)
-        for (finger in fingers) {
+    fun draw(canvas: Canvas, lowerBend: Float, upperBend: Float, talonBend: Float, lid: Float, pupilWidth: Float) {
+        canvas.drawPath(palm, glow)
+        canvas.drawPath(palm, skin)
+        canvas.drawPath(palm, trim)
+        for (pad in pads) canvas.drawOval(pad, padPaint)
+        canvas.drawOval(-66f, -50f, 66f, 74f, bigPad)
+        canvas.drawPath(veins, veinGlow)
+        canvas.drawPath(veins, veinPaint)
+        drawEye(canvas, lid, pupilWidth)
+        for (finger in fingers) drawFinger(canvas, finger, lowerBend, upperBend, talonBend)
+    }
+
+    private fun drawEye(canvas: Canvas, lid: Float, pupilWidth: Float) {
+        canvas.drawOval(-58f, -40f, 58f, 40f, eyeGlow)
+        canvas.save()
+        canvas.scale(1f, lid.coerceAtLeast(0.05f))
+        canvas.drawOval(-53f, -35f, 53f, 35f, eyeRingGold)
+        canvas.drawOval(-50f, -32f, 50f, 32f, eyeRingDark)
+        canvas.save()
+        canvas.clipPath(eyeClip)
+        canvas.drawOval(eyeOval, eyePaint)
+        canvas.save()
+        canvas.scale(pupilWidth, 1f)
+        canvas.drawOval(pupil, pupilPaint)
+        canvas.restore()
+        canvas.drawOval(-16f, -20f, -6f, -13f, shinePaint)
+        canvas.restore()
+        canvas.restore()
+    }
+
+    private fun drawFinger(canvas: Canvas, finger: Finger, lowerBend: Float, upperBend: Float, talonBend: Float) {
+        canvas.save()
+        canvas.translate(finger.x, finger.y)
+        canvas.rotate(finger.angle)
+        canvas.scale(finger.scale, finger.scale)
+
+        val lower = cosDegrees(lowerBend)
+        canvas.save()
+        canvas.scale(1f, lower)
+        drawSegment(canvas, lowerSegment, 22f, lower)
+        for (x in finger.spikes) {
             canvas.save()
-            canvas.translate(finger[0], finger[1])
-            canvas.rotate(finger[2])
-            canvas.scale(finger[3], finger[3])
-            canvas.scale(1f, foldScale, 0f, 6f)
-            // The galaxy fill stays put while the finger moves, like looking through it into space
-            canvas.drawRoundRect(lowerPlate, 15f, 15f, glowPaint)
-            canvas.drawRoundRect(upperPlate, 13f, 13f, glowPaint)
-            canvas.drawRoundRect(lowerPlate, 15f, 15f, galaxyPaint)
-            canvas.drawRoundRect(lowerPlate, 15f, 15f, goldTrim)
-            canvas.drawCircle(0f, -74f, 11f, jointPaint)
-            canvas.drawRoundRect(upperPlate, 13f, 13f, galaxyPaint)
-            canvas.drawRoundRect(upperPlate, 13f, 13f, goldTrim)
-            canvas.drawPath(claw, clawPaint)
-            canvas.drawPath(claw, clawEdge)
+            canvas.translate(x + 4f, -96f)
+            canvas.drawPath(spike, spikePaint)
             canvas.restore()
         }
-        canvas.drawPath(palm, glowPaint)
-        canvas.drawPath(palm, galaxyPaint)
-        canvas.drawPath(palm, palmShade)
-        canvas.drawPath(palm, palmTrim)
-        canvas.drawPath(crease, creasePaint)
-        canvas.drawCircle(PALM_X, PALM_Y, 27f, gemSocket)
-        canvas.drawCircle(PALM_X, PALM_Y, 27f, goldTrim)
-        gemPaint.alpha = (165 + 90 * gemGlow).toInt()
-        canvas.drawCircle(PALM_X, PALM_Y, 18f, gemPaint)
+        canvas.restore()
+
+        // The upper segment starts at the top of the lower one, wherever the bend has put it
+        canvas.translate(0f, -88f * lower)
+        val upper = cosDegrees(lowerBend + upperBend)
+        canvas.save()
+        canvas.scale(1f, upper)
+        drawSegment(canvas, upperSegment, 18f, upper)
+        canvas.restore()
+        canvas.drawCircle(0f, 0f, 16f, jointGlow)
+        canvas.drawCircle(0f, 0f, 10f, joint)
+
+        canvas.translate(0f, -72f * upper)
+        val tip = cosDegrees(lowerBend + upperBend + talonBend)
+        canvas.save()
+        canvas.scale(1f, tip)
+        canvas.drawPath(talon, talonPaint)
+        canvas.drawPath(talon, talonEdge)
+        canvas.restore()
+
+        canvas.restore()
     }
+
+    private fun drawSegment(canvas: Canvas, rect: RectF, corner: Float, facing: Float) {
+        canvas.drawRoundRect(rect, corner, corner, glow)
+        canvas.drawRoundRect(rect, corner, corner, skin)
+        // Segments turned toward the eye catch less light; folded ones show their darker back
+        val shade = (1f - kotlin.math.abs(facing)) * 0.45f + if (facing < 0f) 0.25f else 0f
+        if (shade > 0f) {
+            bend.color = 0xFF05030C.toInt()
+            bend.alpha = (shade * 255).toInt()
+            canvas.drawRoundRect(rect, corner, corner, bend)
+        }
+        canvas.drawRoundRect(rect, corner, corner, trim)
+    }
+
+    private fun cosDegrees(degrees: Float) = cos(Math.toRadians(degrees.toDouble())).toFloat()
 }
 
 /**
@@ -318,24 +394,30 @@ class TunnelPainter {
 /**
  * The start of the game, played over the start screen after PLAY: the gold ring spins fast, slows and clunks to a stop with a flash, then bursts open into
  * a swirling portal that pulls in sparks of light. The screen rumbles while energy cracks spread from the portal, then a tiny hand appears deep inside
- * it and comes straight at you, growing until it fills the screen, flexes its claws and closes on you.
+ * it and comes at you through 3D space, its eye staring and claws twitching. It lunges, curls its talons around you, and is yanked back into the
+ * portal, dragging you through the ring.
  *
- * The view draws the ring, portal, cracks and hand itself. The shaking moves [stage], the view that holds the whole start screen (this view included).
- * Tapping skips ahead.
+ * The view draws the ring, portal, cracks and hand itself. The shaking and the pull through the ring move [stage], the view that holds the whole start
+ * screen (this view included), around the portal. Tapping skips ahead.
  */
 class PortalOverlayView(context: Context) : View(context) {
 
     companion object {
         /** When the screen has been pulled into the portal and the game should open. */
-        const val PULLED_MS = 9_300f
-        /** When the darkness of the tunnel starts covering everything: the moment the hand closes over the screen. */
-        const val DARK_START_MS = 8_650f
+        const val PULLED_MS = 10_100f
+        /** When the darkness of the tunnel starts covering everything: just after you have been pulled through the ring. */
+        const val DARK_START_MS = 9_500f
+        // Distance of the eye from the screen, in design units, for the hand's perspective
+        private const val HAND_EYE = 700f
     }
 
     private val d = resources.displayMetrics.density
     private val coin = CoinPainter()
     private val portal = PortalPainter()
     private val hand = HandPainter()
+    private val armPath = Path()
+    private val armPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val armEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x99C8901E.toInt() }
     private val dimPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private var cx = 0f
@@ -436,10 +518,15 @@ class PortalOverlayView(context: Context) : View(context) {
         ms = time
         val stage = stage ?: return
         val (dx, dy, rotation) = shake(time)
+        // Dragged through the ring after the hand: everything rushes toward the portal
+        val pull = easeIn(progress(time, 8_900f, 9_800f))
+        val scale = lerp(1f, 11f, pull)
         stage.translationX = dx
         stage.translationY = dy
         stage.rotation = rotation
-        onDarken?.invoke(progress(time, DARK_START_MS, 8_950f))
+        stage.scaleX = scale
+        stage.scaleY = scale
+        onDarken?.invoke(progress(time, DARK_START_MS, 9_800f))
         invalidate()
         if (time >= PULLED_MS && !finished) {
             finished = true
@@ -454,7 +541,7 @@ class PortalOverlayView(context: Context) : View(context) {
         val amplitude = when {
             time in 3_000f..5_000f -> 9f * (1f - 0.5f * progress(time, 4_400f, 5_000f))
             time in 7_600f..8_300f -> 4f
-            time in 8_450f..8_700f -> 12f * (1f - progress(time, 8_450f, 8_700f))
+            time in 8_620f..8_900f -> 12f * (1f - progress(time, 8_620f, 8_900f))
             else -> 0f
         } * d
         if (amplitude == 0f) return Triple(0f, 0f, 0f)
@@ -511,7 +598,7 @@ class PortalOverlayView(context: Context) : View(context) {
 
         // The edges darken as the hand blocks out the light
         val dim = progress(time, 6_200f, 8_300f) * 0.7f
-        if (dim > 0f && time < 8_900f) {
+        if (dim > 0f && time < 9_300f) {
             if (dimPaint.shader == null) {
                 val far = hypot(max(cx, width - cx), max(cy, height - cy))
                 dimPaint.shader = RadialGradient(cx, cy + r * 0.3f, far, intArrayOf(0x00050310, 0x00050310, 0xE6050310.toInt()), floatArrayOf(0f, 0.3f, 0.8f), Shader.TileMode.CLAMP)
@@ -522,7 +609,7 @@ class PortalOverlayView(context: Context) : View(context) {
         drawHand(canvas, time, t)
 
         // Flash when the arm grabs
-        val impact = if (time >= 8_550f) 1f - progress(time, 8_600f, 9_000f) else 0f
+        val impact = if (time >= 8_600f) 1f - progress(time, 8_650f, 9_000f) else 0f
         if (impact > 0f) {
             if (impactPaint.shader == null) {
                 impactPaint.shader = RadialGradient(width / 2f, height * 0.6f, max(width, height).toFloat(), intArrayOf(0xFFFFFFFF.toInt(), 0xD9CFFFF2.toInt(), 0x809C7BFF.toInt()), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
@@ -570,35 +657,88 @@ class PortalOverlayView(context: Context) : View(context) {
     }
 
     /**
-     * The hand: it appears tiny deep inside the portal, wobbles, then comes straight at you faster and faster, hovers close flexing its fingers, and
-     * lunges, closing over the screen.
+     * Where the hand is at a moment: its depth (design units toward the eye, negative is deep inside the portal), how far it hangs below the portal's
+     * centre, its sway, and how its fingers bend.
+     */
+    private class HandPose(var z: Float = 0f, var drop: Float = 0f, var sway: Float = 0f, var lower: Float = 18f, var upper: Float = 16f, var talon: Float = 38f)
+
+    private val pose = HandPose()
+
+    private fun handPose(time: Float): HandPose {
+        val p = pose
+        when {
+            time < 5_300f -> progress(time, 5_000f, 5_300f).let { p.z = lerp(-4_200f, -3_800f, it); p.drop = 0f; p.sway = lerp(0f, -5f, it) }
+            time < 5_700f -> progress(time, 5_300f, 5_700f).let { p.z = lerp(-3_800f, -3_300f, it); p.sway = lerp(-5f, 5f, it) }
+            time < 5_900f -> progress(time, 5_700f, 5_900f).let { p.z = lerp(-3_300f, -3_500f, it); p.sway = lerp(5f, 0f, it) }
+            // Coming at you: slowly at first, then faster and faster
+            time < 7_600f -> easeIn(progress(time, 5_900f, 7_600f)).let { p.z = lerp(-3_500f, -420f, it); p.drop = lerp(0f, 40f, it); p.sway = lerp(0f, -5f, it) }
+            time < 8_300f -> progress(time, 7_600f, 8_300f).let { p.z = lerp(-420f, -320f, it); p.drop = lerp(40f, 50f, it); p.sway = 4f * sin(it * 3f * PI.toFloat()) }
+            // The lunge
+            time < 8_650f -> easeIn(progress(time, 8_300f, 8_650f)).let { p.z = lerp(-320f, 250f, it); p.drop = lerp(50f, 70f, it); p.sway = 0f }
+            // A jolt as it grips
+            time < 8_850f -> progress(time, 8_650f, 8_850f).let { p.z = 250f - 20f * sin(it * PI.toFloat()); p.drop = 70f - 6f * sin(it * PI.toFloat()) }
+            // Yanked back into the portal, dragging you along
+            else -> easeIn(progress(time, 8_850f, 9_700f)).let { p.z = lerp(250f, -3_200f, it); p.drop = lerp(70f, 0f, it) }
+        }
+        // Fingers: half open while far away, twitching as it comes closer, spread wide when it hovers, then curled around you
+        val (lower, upper) = when {
+            time < 6_900f -> 18f to 16f
+            time < 7_600f -> progress(time, 6_900f, 7_600f).let { (18f + 10f * sin(it * 4f * PI.toFloat())) to (16f + 14f * sin(it * 4f * PI.toFloat())) }
+            time < 8_100f -> progress(time, 7_600f, 8_100f).let { lerp(18f, 6f, it) to lerp(16f, 4f, it) }
+            time < 8_350f -> progress(time, 8_100f, 8_350f).let { lerp(6f, 24f, it) to lerp(4f, 22f, it) }
+            else -> easeInOut(progress(time, 8_350f, 8_650f)).let { lerp(24f, 102f, it) to lerp(22f, 98f, it) }
+        }
+        p.lower = lower
+        p.upper = upper
+        p.talon = lerp(38f, 70f, easeInOut(progress(time, 8_350f, 8_650f)))
+        return p
+    }
+
+    /**
+     * The hand, in perspective: it travels from deep inside the portal toward the screen, hovers close with its claws twitching, lunges and curls its
+     * talons around you, then is yanked back into the portal. A thick arm stretches from the wrist back into the portal behind it.
      */
     private fun drawHand(canvas: Canvas, time: Float, t: Float) {
-        if (time < 5_000f || time > 8_900f) return
-        // At scale 1 the hand is as wide as the screen
-        val k = width / HandPainter.WIDTH
-        val (scale, rotation, drop) = when {
-            time < 5_300f -> progress(time, 5_000f, 5_300f).let { Triple(lerp(0.03f, 0.07f, it), lerp(0f, -4f, it), 0f) }
-            time < 5_700f -> progress(time, 5_300f, 5_700f).let { Triple(lerp(0.07f, 0.1f, it), lerp(-4f, 3f, it), 0f) }
-            time < 5_900f -> progress(time, 5_700f, 5_900f).let { Triple(lerp(0.1f, 0.09f, it), lerp(3f, 0f, it), 0f) }
-            // Coming closer: it grows slowly at first, then faster and faster
-            time < 7_600f -> easeIn(progress(time, 5_900f, 7_600f)).let { Triple(lerp(0.09f, 1f, it), lerp(0f, -3f, it), lerp(0f, 40f, it)) }
-            time < 8_000f -> progress(time, 7_600f, 8_000f).let { Triple(lerp(1f, 1.1f, it), lerp(-3f, 2f, it), lerp(40f, 46f, it)) }
-            time < 8_300f -> progress(time, 8_000f, 8_300f).let { Triple(lerp(1.1f, 1.18f, it), lerp(2f, 0f, it), lerp(46f, 52f, it)) }
-            time < 8_650f -> easeIn(progress(time, 8_300f, 8_650f)).let { Triple(lerp(1.18f, 5.5f, it), 0f, lerp(52f, 90f, it)) }
-            else -> progress(time, 8_650f, 8_900f).let { Triple(lerp(5.5f, 7f, it), 0f, lerp(90f, 100f, it)) }
-        }
-        val alpha = progress(time, 5_000f, 5_250f)
-        val fold = easeInOut(progress(time, 8_350f, 8_650f))
-        val stretch = if (time in 7_600f..8_300f) sin((time - 7_600f) / 700f * PI.toFloat()) else 0f
+        if (time < 5_000f || time > 9_750f) return
+        val p = handPose(time)
+        // Design units: the start screen is about 390 wide
+        val k = width / 390f
+        val scale = HAND_EYE / (HAND_EYE - p.z)
+        val x = cx
+        val y = cy + p.drop * scale * k
+        val alpha = min(progress(time, 5_000f, 5_250f), 1f - progress(time, 9_550f, 9_750f))
+        if (alpha <= 0f) return
 
         canvas.save()
         if (alpha < 1f) canvas.saveLayerAlpha(0f, 0f, width.toFloat(), height.toFloat(), (alpha * 255).toInt())
-        canvas.translate(cx, cy + drop * k)
-        canvas.rotate(rotation)
+
+        // The arm: from the wrist back to the portal's centre, narrowing into the distance
+        val wristHalf = 74f * scale * k
+        val wristY = y + 110f * scale * k
+        val farHalf = r * 0.12f
+        armPath.reset()
+        armPath.moveTo(x - wristHalf, wristY)
+        armPath.lineTo(cx - farHalf, cy)
+        armPath.lineTo(cx + farHalf, cy)
+        armPath.lineTo(x + wristHalf, wristY)
+        armPath.close()
+        armPaint.shader = LinearGradient(x, wristY, cx, cy, intArrayOf(0xFF3B2390.toInt(), 0xCC2C1870.toInt(), 0x00120A35), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+        canvas.drawPath(armPath, armPaint)
+        armEdge.strokeWidth = 3f * k * scale.coerceAtMost(2f)
+        canvas.drawLine(x - wristHalf, wristY, cx - farHalf, cy, armEdge)
+        canvas.drawLine(x + wristHalf, wristY, cx + farHalf, cy, armEdge)
+
+        canvas.translate(x, y)
+        canvas.rotate(p.sway)
         canvas.scale(scale * k, scale * k)
-        canvas.translate(-HandPainter.PALM_X, -HandPainter.PALM_Y)
-        hand.draw(canvas, fold = fold, stretch = stretch, gemGlow = 0.5f + 0.5f * sin(t * PI.toFloat()))
+        val lid = when {
+            time < 5_400f -> progress(time, 5_000f, 5_400f)
+            time in 7_550f..7_700f -> 1f - sin(progress(time, 7_550f, 7_700f) * PI.toFloat()) * 0.95f
+            else -> 1f
+        }
+        val pupil = lerp(1f, 0.45f, progress(time, 8_100f, 8_650f)) * (0.9f + 0.1f * sin(t * 2f * PI.toFloat()))
+        hand.draw(canvas, lowerBend = p.lower, upperBend = p.upper, talonBend = p.talon, lid = lid, pupilWidth = pupil)
+
         if (alpha < 1f) canvas.restore()
         canvas.restore()
     }

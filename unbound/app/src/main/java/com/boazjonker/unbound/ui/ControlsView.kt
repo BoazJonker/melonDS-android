@@ -344,6 +344,6 @@ class ControlsView(context: Context) : View(context) {
     }
 
     private companion object {
-        const val DPAD_TILT = 16f
+        const val DPAD_TILT = 17f
     }
 }
